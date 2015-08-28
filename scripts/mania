@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import
+import sys
+import os
+import os.path
+import argparse
+
+
+def compile(args):
+    pass
+
+
+def run(args):
+    pass
+
+
+def bundle(args):
+    for filename in args.files:
+        pass
+
+
+def install(args):
+    pass
+
+
+commands = {
+    'compile': compile,
+    'run': run,
+    'bundle': bundle,
+    'install': install
+}
+
+
+def main(argv):
+    parser = argparse.ArgumentParser()
+
+    subparsers = parser.add_subparsers(metavar='COMMAND')
+
+
+    compile_parser = subparsers.add_parser('compile',
+        help='Compile source files'
+    )
+
+    compile_parser.set_defaults(command=compile)
+
+
+    run_parser = subparsers.add_parser('run',
+        help='Run compiled files'
+    )
+
+    run_parser.set_defaults(command=run)
+
+
+    bundle_parser = subparsers.add_parser('bundle',
+        help='Bundle compiled files to libraries/executables'
+    )
+
+    bundle_parser.set_defaults(command=bundle)
+
+    bundle_parser.add_argument('files',
+        metavar='FILE',
+        nargs='+'
+    )
+
+    bundle_parser.add_argument('--output', '-o',
+        metavar='FILE'
+    )
+
+
+    install_parser = subparsers.add_parser('install',
+        help='Install bundles'
+    )
+
+    install_parser.set_defaults(command=install)
+
+    install_parser.add_argument('filename',
+        metavar='BUNDLEFILE',
+        help='Filename or URL'
+    )
+
+
+    args = parser.parse_args(argv)
+
+    print args
+
+    args.command(args)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
