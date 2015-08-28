@@ -16,15 +16,33 @@ import mania.types as types
 logger = logging.getLogger(__name__)
 
 
-class Stack(list):
+class StackEmptyException(Exception):
+    pass
+
+
+class Stack(object):
+
+    def __init__(self, *values):
+        self.stack = list(values)
 
     def push(self, value):
-        list.append(self, value)
+        self.stack.append(value)
 
         return value
 
     def peek(self):
-        return self[-1]
+        try:
+            return self.stack[-1]
+
+        except IndexError as e:
+            raise StackEmptyException(*e.args)
+
+    def pop(self):
+        try:
+            return self.stack.pop()
+
+        except IndexError as e:
+            raise StackEmptyException(*e.args)
 
 
 class Scope(object):
