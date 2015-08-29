@@ -84,7 +84,14 @@ def main():
 
     module = node.load_module(module.name)
 
-    print module.scope.locals.keys()
+    function = module.lookup(types.Symbol('main'))
+
+    process = node.spawn_process(
+        code=function.code,
+        scope=Scope(parent=function.scope)
+    )
+
+    node.start()
 
 
 if __name__ == '__main__':
