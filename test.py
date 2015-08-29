@@ -33,7 +33,7 @@ def main():
     source = '''(author "Björn Schulz <bjoern@fac3.org>")
 (copyright "2015 Björn Schulz")
 (license "MIT")
-(version "0.1.0")
+(version "0.1.0" "dev")
 (description "A simple hello world program in mania.")
 
 (define-module test (main)

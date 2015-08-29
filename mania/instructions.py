@@ -188,12 +188,12 @@ class Call(Instruction):
         stream.write(struct.pack('<I', self.number))
 
     def eval(self, vm):
-        args = [vm.frame.pop() for _ in xrange(self.number)][::-1]
+        args = [vm.frame.pop() for _ in xrange(self.number)]
 
         callable = vm.frame.pop()
 
         if isinstance(callable, mania.types.NativeFunction):
-            for item in callable(*args):
+            for item in callable(*args[::-1]):
                 vm.frame.push(item)
 
         else:
