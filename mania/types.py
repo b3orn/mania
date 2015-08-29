@@ -302,6 +302,9 @@ class Pair(Type):
 
         list.tail = other
 
+    def __len__(self):
+        return len(list(e for e in self))
+
     def __iter__(self):
         iterator = self
 
@@ -373,18 +376,32 @@ class Unquoted(Type):
 
 class Function(Type):
 
-    def __init__(self, code, scope):
+    def __init__(self, code, scope, name=None):
         self.code = code
         self.scope = scope
+        self.name = name
+
+    def to_string(self):
+        if self.name:
+            return String(u'(function {0})'.format(self.name))
+
+        return String(u'(function)')
 
 
 class NativeFunction(Function):
 
-    def __init__(self, function):
+    def __init__(self, function, name=None):
         self.function = function
+        self.name = name
 
     def __call__(self, *args):
         return self.function(*args)
+
+    def to_string(self):
+        if self.name:
+            return String(u'(native-function {0})'.format(self.name))
+
+        return String(u'(native-function)')
 
 
 class Macro(Type):

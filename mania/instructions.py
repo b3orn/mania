@@ -155,7 +155,7 @@ class LoadCode(Instruction):
 
     def __init__(self, entry_point, size):
         self.entry_point = entry_point
-        self.size = size
+        self._size = size
 
     @property
     def size(self):
@@ -170,12 +170,13 @@ class LoadCode(Instruction):
     def dump(self, stream):
         super(LoadCode, self).dump(stream)
 
-        stream.write(struct.pack('<II', self.entry_point, self.size))
+        stream.write(struct.pack('<II', self.entry_point, self._size))
 
     def eval(self, vm):
-        vm.frame.push(vm.frame.pop().code(self.position, self.size))
+        vm.frame.push(vm.frame.code.module.code(self.entry_point, self._size))
 
 
+@opcode(consts.LOAD_MODULE)
 class LoadModule(LoadStoreOperation):
 
     def eval(self, vm):
@@ -223,6 +224,15 @@ class BuildPair(Instruction):
         head = vm.frame.pop()
 
         vm.frame.push(mania.types.Pair(head, tail))
+
+
+@opcode(consts.BUILD_FUNCTION)
+class BuildFunction(Instruction):
+
+    def eval(self, vm):
+        code = vm.frame.pop()
+
+        vm.frame.push(mania.types.Function(code, vm.frame.scope))
 
 
 @opcode(consts.EXIT)
@@ -326,8 +336,37 @@ class Call(Instruction):
                 parent=vm.frame,
                 scope=mania.frame.Scope(parent=callable.scope),
                 code=callable.code,
-                stack=vm.frame.Stack(args)
+                stack=mania.frame.Stack(args)
             )
+
+
+@opcode(consts.RETURN)
+class Return(Instruction):
+
+    def __init__(self, number):
+        self.number = number
+
+    @property
+    def size(self):
+        return super(Call, self).size + struct.calcsize('<I')
+
+    @classmethod
+    def load(cls, stream):
+        (number,) = struct.unpack('<I', stream.read(struct.calcsize('<I')))
+
+        return cls(number)
+
+    def dump(self, stream):
+        super(Call, self).dump(stream)
+
+        stream.write(struct.pack('<I', self.number))
+
+    def eval(self, vm):
+        args = vm.frame.stack[-self.number:][::-1]
+
+        vm.restore()
+
+        vm.frame.extend(args)
 
 
 @opcode(consts.EVAL)

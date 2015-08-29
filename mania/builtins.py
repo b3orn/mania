@@ -127,14 +127,34 @@ define_module_macro = mania.types.NativeMacro([
 
 
 def define_function(vm, bindings):
+    name = bindings[mania.types.Symbol('name')]
+    parameters = bindings[mania.types.Symbol('parameters')] or []
+    body = bindings[mania.types.Symbol('body')] or []
+
     compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
 
-    compiler.compile_any(bindings[mania.types.Symbol('name')])
-    compiler.builder.add(mania.instructions.Store(compiler.builder.constant(
-        bindings[mania.types.Symbol('name')]
-    )))
+    for i, parameter in enumerate(parameters):
+        compiler.builder.add(mania.instructions.Store(
+            compiler.builder.constant(parameter)
+        ))
+
+    for node in body:
+        compiler.compile_any(node)
+        compiler.builder.add(mania.instructions.Eval())
+
+    compiler.builder.add(mania.instructions.Return(1))
+
+    entry_point = compiler.builder.index()
+
+    compiler.builder.add(mania.instructions.LoadCode(0, entry_point))
+    compiler.builder.add(mania.instructions.BuildFunction())
+    compiler.builder.add(mania.instructions.Store(
+        compiler.builder.constant(name)
+    ))
 
     module = compiler.builder.module
+
+    module.entry_point = entry_point
 
     return [module.code(
         module.entry_point,
