@@ -288,6 +288,125 @@ mul_macro = mania.types.NativeMacro([
 ])
 
 
+def let(vm, bindings):
+    variables = list(bindings[mania.types.Symbol('variables')] or [])
+    values = list(bindings[mania.types.Symbol('values')] or [])
+
+    if len(values) != len(variables):
+        raise SyntaxError('let bindings need a value')
+
+    compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
+
+    for name in variables:
+        compiler.builder.add(mania.instructions.Store(
+            compiler.builder.constant(name)
+        ))
+
+    for node in bindings[mania.types.Symbol('body')]:
+        compiler.compile_any(node)
+        compiler.builder.add(mania.instructions.Eval())
+
+    compiler.builder.add(mania.instructions.Return(1))
+
+    size = compiler.builder.index()
+
+    compiler.builder.add(mania.instructions.LoadCode(0, size))
+    compiler.builder.add(mania.instructions.BuildFunction())
+
+    if mania.types.Symbol('name') in bindings:
+        name = bindings[mania.types.Symbol('name')]
+
+        compiler.builder.add(mania.instructions.Store(
+            compiler.builder.constant(name)
+        ))
+        compiler.builder.add(mania.instructions.Load(
+            compiler.builder.constant(name)
+        ))
+
+    for value in values:
+        compiler.compile_any(value)
+        compiler.builder.add(mania.instructions.Eval())
+
+    compiler.builder.add(mania.instructions.Call(len(values)))
+    compiler.builder.add(mania.instructions.Return(1))
+
+    entry_point = compiler.builder.index()
+
+    compiler.builder.add(mania.instructions.LoadCode(size, entry_point - size))
+    compiler.builder.add(mania.instructions.BuildFunction())
+    compiler.builder.add(mania.instructions.Call(0))
+
+    module = compiler.builder.module
+
+    module.entry_point = entry_point
+
+    return [module.code(
+        module.entry_point,
+        len(module) - module.entry_point
+    )]
+
+
+let_macro = mania.types.NativeMacro([
+    mania.types.NativeRule(
+        mania.types.Pattern(mania.types.Pair.from_sequence([
+            mania.types.Symbol('_'),
+            mania.types.Pair.from_sequence([
+                mania.types.Pair.from_sequence([
+                    mania.types.Symbol('variables'),
+                    mania.types.Symbol('values')
+                ]),
+                mania.types.Ellipsis()
+            ]),
+            mania.types.Symbol('body'),
+            mania.types.Ellipsis()
+        ])),
+        let
+    ),
+    mania.types.NativeRule(
+        mania.types.Pattern(mania.types.Pair.from_sequence([
+            mania.types.Symbol('_'),
+            mania.types.Symbol('name'),
+            mania.types.Pair.from_sequence([
+                mania.types.Pair.from_sequence([
+                    mania.types.Symbol('variables'),
+                    mania.types.Symbol('values')
+                ]),
+                mania.types.Ellipsis()
+            ]),
+            mania.types.Symbol('body'),
+            mania.types.Ellipsis()
+        ])),
+        let
+    )
+])
+
+
+def if_(vm, bindings):
+    return []
+
+
+if_macro = mania.types.NativeMacro([
+    mania.types.NativeRule(
+        mania.types.Pattern(mania.types.Pair.from_sequence([
+            mania.types.Symbol('_'),
+            mania.types.Symbol('condition'),
+            mania.types.Symbol('positive')
+        ])),
+        if_
+    ),
+    mania.types.NativeRule(
+        mania.types.Pattern(mania.types.Pair.from_sequence([
+            mania.types.Symbol('_'),
+            mania.types.Symbol('condition'),
+            mania.types.Symbol('positive'),
+            mania.types.Symbol('negative')
+        ])),
+        if_
+    )
+])
+
+
+
 def println(*args):
     print ' '.join(map(str, args))
 
@@ -298,5 +417,7 @@ default_scope = mania.frame.Scope(locals={
     mania.types.Symbol('import'): import_macro,
     mania.types.Symbol('+'): add_macro,
     mania.types.Symbol('*'): mul_macro,
-    mania.types.Symbol('println'): mania.types.NativeFunction(println)
+    mania.types.Symbol('println'): mania.types.NativeFunction(println),
+    mania.types.Symbol('let'): let_macro,
+    mania.types.Symbol('if'): if_macro
 })

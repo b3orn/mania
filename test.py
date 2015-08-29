@@ -32,8 +32,8 @@ def main():
 
     source = '''(define-module test (main)
     (define (main)
-        (println (+ (* 5 2) 32))))
-'''
+        (let ((a 5) (b 2) (c 32))
+            (println (+ (* a b) c)))))'''
 
     parser = Parser(Scanner(source))
 

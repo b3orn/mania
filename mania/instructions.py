@@ -386,7 +386,7 @@ class Return(Instruction):
 
         vm.restore()
 
-        vm.frame.extend(args)
+        vm.frame.stack.extend(args)
 
 
 @opcode(consts.EVAL)
