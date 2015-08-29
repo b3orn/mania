@@ -259,6 +259,35 @@ add_macro = mania.types.NativeMacro([
 ])
 
 
+def sub(vm, bindings):
+    compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
+
+    compiler.compile_any(bindings[mania.types.Symbol('x')])
+    compiler.builder.add(mania.instructions.Eval())
+    compiler.compile_any(bindings[mania.types.Symbol('y')])
+    compiler.builder.add(mania.instructions.Eval())
+    compiler.builder.add(mania.instructions.Sub())
+
+    module = compiler.builder.module
+
+    return [module.code(
+        module.entry_point,
+        len(module) - module.entry_point
+    )]
+
+
+sub_macro = mania.types.NativeMacro([
+    mania.types.NativeRule(
+        mania.types.Pattern(mania.types.Pair.from_sequence([
+            mania.types.Symbol('_'),
+            mania.types.Symbol('x'),
+            mania.types.Symbol('y')
+        ])),
+        sub
+    )
+])
+
+
 def mul(vm, bindings):
     compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
 
@@ -382,7 +411,42 @@ let_macro = mania.types.NativeMacro([
 
 
 def if_(vm, bindings):
-    return []
+    compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
+
+    compiler.compile_any(bindings[mania.types.Symbol('condition')])
+    compiler.builder.add(mania.instructions.Eval())
+
+    negative_jump = compiler.builder.add(None)
+
+    compiler.compile_any(bindings[mania.types.Symbol('positive')])
+    compiler.builder.add(mania.instructions.Eval())
+
+    end_jump = compiler.builder.add(None)
+
+    compiler.builder.replace(
+        negative_jump,
+        mania.instructions.JumpIfFalse(compiler.builder.index())
+    )
+
+    if mania.types.Symbol('negative') in bindings:
+        compiler.compile_any(bindings[mania.types.Symbol('negative')])
+        compiler.builder.add(mania.instructions.Eval())
+
+    else:
+        compiler.builder.add(mania.instructions.LoadConstant(
+            compiler.builder.constant(mania.types.Undefined())
+        ))
+
+    end = compiler.builder.add(mania.instructions.Nop())
+
+    compiler.builder.replace(end_jump, mania.instructions.Jump(end))
+
+    module = compiler.builder.module
+
+    return [module.code(
+        module.entry_point,
+        len(module)
+    )]
 
 
 if_macro = mania.types.NativeMacro([
@@ -411,13 +475,24 @@ def println(*args):
     print ' '.join(map(str, args))
 
 
+def equal(x, y):
+    return [mania.types.Bool(x == y)]
+
+
+def not_equal(x, y):
+    return [mania.types.Bool(x != y)]
+
+
 default_scope = mania.frame.Scope(locals={
     mania.types.Symbol('define-module'): define_module_macro,
     mania.types.Symbol('define'): define_macro,
     mania.types.Symbol('import'): import_macro,
     mania.types.Symbol('+'): add_macro,
+    mania.types.Symbol('-'): sub_macro,
     mania.types.Symbol('*'): mul_macro,
     mania.types.Symbol('println'): mania.types.NativeFunction(println),
+    mania.types.Symbol('=='): mania.types.NativeFunction(equal),
+    mania.types.Symbol('/='): mania.types.NativeFunction(not_equal),
     mania.types.Symbol('let'): let_macro,
     mania.types.Symbol('if'): if_macro
 })

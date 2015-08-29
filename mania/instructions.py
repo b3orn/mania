@@ -205,6 +205,16 @@ class Add(Instruction):
         vm.frame.push(x.add(y))
 
 
+@opcode(consts.SUB)
+class Sub(Instruction):
+
+    def eval(self, vm):
+        y = vm.frame.pop()
+        x = vm.frame.pop()
+
+        vm.frame.push(x.sub(y))
+
+
 @opcode(consts.MUL)
 class Mul(Instruction):
 
@@ -348,7 +358,7 @@ class Call(Instruction):
         callable = vm.frame.pop()
 
         if isinstance(callable, mania.types.NativeFunction):
-            for item in callable(*args[::-1]) or []:
+            for item in callable(*args[::-1]) or [mania.types.Undefined()]:
                 vm.frame.push(item)
 
         else:

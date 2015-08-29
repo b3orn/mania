@@ -182,6 +182,11 @@ class Integer(Type):
 
         return Float(result) if isinstance(result, float) else Integer(result)
 
+    def sub(self, other):
+        result = self.value - other.value
+
+        return Float(result) if isinstance(result, float) else Integer(result)
+
     def mul(self, other):
         result = self.value * other.value
 
@@ -217,6 +222,11 @@ class Float(Type):
 
     def add(self, other):
         result = self.value + other.value
+
+        return Float(result) if isinstance(result, float) else Integer(result)
+
+    def sub(self, other):
+        result = self.value - other.value
 
         return Float(result) if isinstance(result, float) else Integer(result)
 
