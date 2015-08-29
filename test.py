@@ -32,6 +32,8 @@ def main():
 
     source = '''(define-module test (main)
     (define (main)
+        (println let)
+
         (let loop ((n 10))
             (println "Hello world!")
             (if (/= n 0)

@@ -439,6 +439,9 @@ class Macro(Type):
     def __init__(self, rules):
         self.rules = rules
 
+    def to_string(self):
+        return String(u'(syntax)')
+
     def expand(self, vm, expression):
         for rule in self.rules:
             try:
@@ -646,7 +649,9 @@ class Template(object):
 
 
 class NativeMacro(Macro):
-    pass
+
+    def to_string(self):
+        return String(u'(native-syntax)')
 
 
 class NativeRule(object):

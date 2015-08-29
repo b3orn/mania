@@ -489,19 +489,23 @@ class Eval(Instruction):
             evalable = vm.frame.lookup(expression)
 
             if isinstance(evalable, mania.types.Macro):
-                result = list(reversed(evalable.expand(vm, expression) or []))
+                try:
+                    result = list(reversed(evalable.expand(vm, expression) or []))
 
-                if result:
-                    for code in result:
-                        vm.frame = mania.frame.Frame(
-                            parent=vm.frame,
-                            scope=vm.frame.scope,
-                            stack=vm.frame.stack,
-                            code=code
-                        )
+                    if result:
+                        for code in result:
+                            vm.frame = mania.frame.Frame(
+                                parent=vm.frame,
+                                scope=vm.frame.scope,
+                                stack=vm.frame.stack,
+                                code=code
+                            )
 
-                else:
-                    vm.frame.push(mania.types.Undefined())
+                    else:
+                        vm.frame.push(mania.types.Undefined())
+
+                except mania.types.MatchError:
+                    vm.frame.push(evalable)
 
             else:
                 vm.frame.push(evalable)
