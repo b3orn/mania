@@ -137,6 +137,11 @@ class Parser(object):
     def parse_list(self):
         self.expect('opening_parentheses')
 
+        if self.token == 'closing_parentheses':
+            self.advance()
+
+            return types.Nil()
+
         head = self.parse_any()
 
         if self.token == 'dot':
