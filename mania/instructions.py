@@ -101,15 +101,14 @@ class Pop(StackOperation):
             vm.frame.pop()
 
 
-@opcode(consts.STORE)
-class Store(Instruction):
+class LoadStoreOperation(Instruction):
 
     def __init__(self, index):
         self.index = index
 
     @property
     def size(self):
-        return super(Store, self).size + struct.calcsize('<I')
+        return super(LoadStoreOperation, self).size + struct.calcsize('<I')
 
     @classmethod
     def load(cls, stream):
@@ -118,62 +117,81 @@ class Store(Instruction):
         return cls(index)
 
     def dump(self, stream):
-        super(Store, self).dump(stream)
+        super(LoadStoreOperation, self).dump(stream)
 
         stream.write(struct.pack('<I', self.index))
+
+
+@opcode(consts.STORE)
+class Store(LoadStoreOperation):
 
     def eval(self, vm):
         vm.frame.define(vm.frame.constant(self.index), vm.frame.pop())
 
 
 @opcode(consts.LOAD)
-class Load(Instruction):
-
-    def __init__(self, index):
-        self.index = index
-
-    @property
-    def size(self):
-        return super(Load, self).size + struct.calcsize('<I')
-
-    @classmethod
-    def load(cls, stream):
-        (index,) = struct.unpack('<I', stream.read(struct.calcsize('<I')))
-
-        return cls(index)
-
-    def dump(self, stream):
-        super(Load, self).dump(stream)
-
-        stream.write(struct.pack('<I', self.index))
+class Load(LoadStoreOperation):
 
     def eval(self, vm):
         vm.frame.push(vm.frame.lookup(vm.frame.constant(self.index)))
 
 
+@opcode(consts.LOAD_FIELD)
+class LoadField(LoadStoreOperation):
+
+    def eval(self, vm):
+        vm.frame.push(vm.frame.pop().lookup(vm.frame.constant(self.index)))
+
+
 @opcode(consts.LOAD_CONSTANT)
-class LoadConstant(Instruction):
-
-    def __init__(self, index):
-        self.index = index
-
-    @property
-    def size(self):
-        return super(LoadConstant, self).size + struct.calcsize('<I')
-
-    @classmethod
-    def load(cls, stream):
-        (index,) = struct.unpack('<I', stream.read(struct.calcsize('<I')))
-
-        return cls(index)
-
-    def dump(self, stream):
-        super(LoadConstant, self).dump(stream)
-
-        stream.write(struct.pack('<I', self.index))
+class LoadConstant(LoadStoreOperation):
 
     def eval(self, vm):
         vm.frame.push(vm.frame.constant(self.index))
+
+
+@opcode(consts.LOAD_CODE)
+class LoadCode(Instruction):
+
+    def __init__(self, entry_point, size):
+        self.entry_point = entry_point
+        self.size = size
+
+    @property
+    def size(self):
+        return super(LoadCode, self).size + struct.calcsize('<II')
+
+    @classmethod
+    def load(cls, stream):
+        (entry, size) = struct.unpack('<II', stream.read(struct.calcsize('<II')))
+
+        return cls(entry, size)
+
+    def dump(self, stream):
+        super(LoadCode, self).dump(stream)
+
+        stream.write(struct.pack('<II', self.entry_point, self.size))
+
+    def eval(self, vm):
+        vm.frame.push(vm.frame.pop().code(self.position, self.size))
+
+
+class LoadModule(LoadStoreOperation):
+
+    def eval(self, vm):
+        name = vm.frame.constants(self.index)
+
+        try:
+            module = vm.process.scheduler.node.load_module(name)
+
+            vm.frame.push(module)
+
+        except LoadingDeferred:
+            vm.process.status = node.WAITING_FOR_MODULE
+            vm.process.waiting_for = name
+            vm.frame.position -= 1
+
+            raise node.Schedule()
 
 
 @opcode(consts.BUILD_QUOTED)
@@ -436,30 +454,6 @@ class BuildModule(Instruction):
         )
 
         vm.process.scheduler.node.loaded_modules[name] = module
-
-
-class LoadModule(Instruction):
-
-    def __init__(self, index):
-        self.index = index
-
-    def eval(self, vm):
-        name = vm.frame.constants(self.index)
-
-        try:
-            module = vm.process.scheduler.node.load_module(name)
-
-            vm.frame.push(module)
-
-        except LoadingDeferred:
-            vm.process.status = WAITING_FOR_MODULE
-            vm.process.waiting_for = name
-            vm.frame.position -= 1
-
-            raise Schedule()
-
-        except LoadError as e:
-            vm.throw(e)
 
 
 class Receive(Instruction):
