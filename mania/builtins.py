@@ -62,7 +62,7 @@ register_module_macro = mania.types.NativeMacro([
 
 
 def ignore(vm, bindings):
-    return []
+    pass
 
 
 ignore_macro = mania.types.NativeMacro([
@@ -205,7 +205,7 @@ define_macro = mania.types.NativeMacro([
 
 
 def import_(vm, bindings):
-    return []
+    pass
 
 
 import_macro = mania.types.NativeMacro([

@@ -437,13 +437,19 @@ class Eval(Instruction):
                 evalable = vm.frame.lookup(expression.head)
 
                 if isinstance(evalable, mania.types.Macro):
-                    for code in reversed(evalable.expand(vm, expression)):
-                        vm.frame = mania.frame.Frame(
-                            parent=vm.frame,
-                            scope=vm.frame.scope,
-                            stack=vm.frame.stack,
-                            code=code
-                        )
+                    result = list(reversed(evalable.expand(vm, expression) or []))
+
+                    if result:
+                        for code in result:
+                            vm.frame = mania.frame.Frame(
+                                parent=vm.frame,
+                                scope=vm.frame.scope,
+                                stack=vm.frame.stack,
+                                code=code
+                            )
+
+                    else:
+                        vm.frame.push(mania.types.Undefined())
 
                 elif isinstance(evalable, mania.types.Function):
                     compiler = mania.compiler.SimpleCompiler(None)
@@ -483,13 +489,19 @@ class Eval(Instruction):
             evalable = vm.frame.lookup(expression)
 
             if isinstance(evalable, mania.types.Macro):
-                for code in reversed(evalable.expand(vm, expression)):
-                    vm.frame = mania.frame.Frame(
-                        parent=vm.frame,
-                        scope=vm.frame.scope,
-                        stack=vm.frame.stack,
-                        code=code
-                    )
+                result = list(reversed(evalable.expand(vm, expression) or []))
+
+                if result:
+                    for code in result:
+                        vm.frame = mania.frame.Frame(
+                            parent=vm.frame,
+                            scope=vm.frame.scope,
+                            stack=vm.frame.stack,
+                            code=code
+                        )
+
+                else:
+                    vm.frame.push(mania.types.Undefined())
 
             else:
                 vm.frame.push(evalable)
