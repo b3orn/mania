@@ -51,6 +51,56 @@ class Instruction(object):
         raise NotImplementedError('"eval" needs to be implemented in subclasses')
 
 
+@opcode(consts.NOP)
+class Nop(Instruction):
+
+    def eval(self, vm):
+        pass
+
+
+class StackOperation(Instruction):
+
+    def __init__(self, count):
+        self.count = count
+
+    @property
+    def size(self):
+        return super(StackOperation, self).size + struct.calcsize('<I')
+
+    @classmethod
+    def load(cls, stream):
+        (index,) = struct.unpack('<I', stream.read(struct.calcsize('<I')))
+
+        return cls(index)
+
+    def dump(self, stream):
+        super(StackOperation, self).dump(stream)
+
+        stream.write(struct.pack('<I', self.index))
+
+
+@opcode(consts.DUPLICATE)
+class Duplicate(StackOperation):
+
+    def eval(self, vm):
+        vm.frame.stack.extend(vm.frame.stack[-self.number:])
+
+
+@opcode(consts.ROTATE)
+class Rotate(StackOperation):
+
+    def eval(self, vm):
+        vm.frame.stack[-self.number:] = vm.frame.stack[-self.number:][::-1]
+
+
+@opcode(consts.POP)
+class Pop(StackOperation):
+
+    def eval(self, vm):
+        for _ in xrange(self.number):
+            vm.frame.pop()
+
+
 @opcode(consts.STORE)
 class Store(Instruction):
 
