@@ -75,14 +75,12 @@ def main():
     node.start()
 
     try:
-        node.load_module(module.name)
+        module = node.load_module(module.name)
 
     except LoadingDeferred:
-        pass
+        node.start()
 
-    node.start()
-
-    module = node.load_module(module.name)
+        module = node.load_module(module.name)
 
     function = module.lookup(types.Symbol('main'))
 
