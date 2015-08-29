@@ -20,35 +20,23 @@ class StackEmptyException(Exception):
     pass
 
 
-class Stack(object):
-
-    def __init__(self, *values):
-        self.stack = list(values)
-
-    def __len__(self):
-        return len(self.stack)
-
-    def __getitem__(self, index):
-        return self.stack[index]
-
-    def __repr__(self):
-        return repr(self.stack)
+class Stack(list):
 
     def push(self, value):
-        self.stack.append(value)
+        list.append(self, value)
 
         return value
 
     def peek(self):
         try:
-            return self.stack[-1]
+            return self[-1]
 
         except IndexError as e:
             raise StackEmptyException(*e.args)
 
     def pop(self):
         try:
-            return self.stack.pop()
+            return list.pop(self)
 
         except IndexError as e:
             raise StackEmptyException(*e.args)
