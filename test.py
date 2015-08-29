@@ -30,24 +30,9 @@ def main():
     ))
     root.addHandler(handler)
 
-    source = '''(author "Björn Schulz <bjoern@fac3.org>")
-(copyright "2015 Björn Schulz")
-(license "MIT")
-(version "0.1.0" "dev")
-(description "A simple hello world program in mania.")
-
-(define-module test (main)
-    (import 'mania:io)
-    (import 'mania:string)
-
-    (define (print message)
-        (mania:io:write mania:io:stdout message))
-
-    (define (println message)
-        (print (mania:string:format "{0}{1}" message mania:io:newline)))
-
+    source = '''(define-module test (main)
     (define (main)
-        (println "Hello world!")))
+        (println (+ (* 5 2) 32))))
 '''
 
     parser = Parser(Scanner(source))

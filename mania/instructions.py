@@ -195,6 +195,26 @@ class LoadModule(LoadStoreOperation):
             raise node.Schedule()
 
 
+@opcode(consts.ADD)
+class Add(Instruction):
+
+    def eval(self, vm):
+        y = vm.frame.pop()
+        x = vm.frame.pop()
+
+        vm.frame.push(x.add(y))
+
+
+@opcode(consts.MUL)
+class Mul(Instruction):
+
+    def eval(self, vm):
+        y = vm.frame.pop()
+        x = vm.frame.pop()
+
+        vm.frame.push(x.mul(y))
+
+
 @opcode(consts.BUILD_QUOTED)
 class BuildQuoted(Instruction):
 
@@ -328,7 +348,7 @@ class Call(Instruction):
         callable = vm.frame.pop()
 
         if isinstance(callable, mania.types.NativeFunction):
-            for item in callable(*args[::-1]):
+            for item in callable(*args[::-1]) or []:
                 vm.frame.push(item)
 
         else:

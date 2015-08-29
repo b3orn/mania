@@ -177,6 +177,16 @@ class Integer(Type):
     def to_string(self):
         return String(unicode(self.value))
 
+    def add(self, other):
+        result = self.value + other.value
+
+        return Float(result) if isinstance(result, float) else Integer(result)
+
+    def mul(self, other):
+        result = self.value * other.value
+
+        return Float(result) if isinstance(result, float) else Integer(result)
+
 
 @serializable(consts.FLOAT)
 class Float(Type):
@@ -204,6 +214,16 @@ class Float(Type):
 
     def to_string(self):
         return String(unicode(self.value))
+
+    def add(self, other):
+        result = self.value + other.value
+
+        return Float(result) if isinstance(result, float) else Integer(result)
+
+    def mul(self, other):
+        result = self.value * other.value
+
+        return Float(result) if isinstance(result, float) else Integer(result)
 
 
 @serializable(consts.SYMBOL)

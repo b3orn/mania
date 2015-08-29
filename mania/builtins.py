@@ -230,8 +230,73 @@ import_macro = mania.types.NativeMacro([
 ])
 
 
+def add(vm, bindings):
+    compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
+
+    compiler.compile_any(bindings[mania.types.Symbol('x')])
+    compiler.builder.add(mania.instructions.Eval())
+    compiler.compile_any(bindings[mania.types.Symbol('y')])
+    compiler.builder.add(mania.instructions.Eval())
+    compiler.builder.add(mania.instructions.Add())
+
+    module = compiler.builder.module
+
+    return [module.code(
+        module.entry_point,
+        len(module) - module.entry_point
+    )]
+
+
+add_macro = mania.types.NativeMacro([
+    mania.types.NativeRule(
+        mania.types.Pattern(mania.types.Pair.from_sequence([
+            mania.types.Symbol('_'),
+            mania.types.Symbol('x'),
+            mania.types.Symbol('y')
+        ])),
+        add
+    )
+])
+
+
+def mul(vm, bindings):
+    compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
+
+    compiler.compile_any(bindings[mania.types.Symbol('x')])
+    compiler.builder.add(mania.instructions.Eval())
+    compiler.compile_any(bindings[mania.types.Symbol('y')])
+    compiler.builder.add(mania.instructions.Eval())
+    compiler.builder.add(mania.instructions.Mul())
+
+    module = compiler.builder.module
+
+    return [module.code(
+        module.entry_point,
+        len(module) - module.entry_point
+    )]
+
+
+mul_macro = mania.types.NativeMacro([
+    mania.types.NativeRule(
+        mania.types.Pattern(mania.types.Pair.from_sequence([
+            mania.types.Symbol('_'),
+            mania.types.Symbol('x'),
+            mania.types.Symbol('y')
+        ])),
+        mul
+    )
+])
+
+
+def println(*args):
+    print ' '.join(map(str, args))
+
+
 default_scope = mania.frame.Scope(locals={
     mania.types.Symbol('define-module'): define_module_macro,
     mania.types.Symbol('define'): define_macro,
-    mania.types.Symbol('import'): import_macro
+    mania.types.Symbol('import'): import_macro,
+    mania.types.Symbol('+'): add_macro,
+    mania.types.Symbol('*'): mul_macro,
+    mania.types.Symbol('println'): mania.types.NativeFunction(println)
 })
