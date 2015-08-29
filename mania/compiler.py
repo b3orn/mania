@@ -11,8 +11,8 @@
 from __future__ import absolute_import
 import logging
 import io
-import mania.types as types
-import mania.instructions as instructions
+import mania.types
+import mania.instructions
 
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class Builder(object):
 
     @property
     def module(self):
-        return types.Module(
+        return mania.types.Module(
             name=self.name,
             entry_point=0,
             constants=self.constants,
@@ -78,23 +78,23 @@ class SimpleCompiler(Compiler):
         for element in module:
             self.compile_any(element)
 
-            self.builder.add(instructions.Eval())
+            self.builder.add(mania.instructions.Eval())
 
-        self.builder.add(instructions.Exit())
+        self.builder.add(mania.instructions.Exit())
 
         return self.builder.module
 
     def compile_any(self, code):
-        if isinstance(code, types.Pair):
+        if isinstance(code, mania.types.Pair):
             self.compile_pair(code)
 
-        elif isinstance(code, types.Quoted):
+        elif isinstance(code, mania.types.Quoted):
             self.compile_quoted(code)
 
-        elif isinstance(code, types.Quasiquoted):
+        elif isinstance(code, mania.types.Quasiquoted):
             self.compile_quasiquoted(code)
 
-        elif isinstance(code, types.Unquoted):
+        elif isinstance(code, mania.types.Unquoted):
             self.compile_unquoted(code)
 
         else:
@@ -104,27 +104,27 @@ class SimpleCompiler(Compiler):
         self.compile_any(code.head)
         self.compile_any(code.tail)
 
-        self.builder.add(instructions.BuildPair())
+        self.builder.add(mania.instructions.BuildPair())
 
     def compile_quoted(self, code):
         self.compile_any(code.value)
 
-        self.builder.add(instructions.BuildQuoted())
+        self.builder.add(mania.instructions.BuildQuoted())
 
     def compile_quasiquoted(self, code):
         self.compile_any(code.value)
 
-        self.builder.add(instructions.BuildQuasiquoted())
+        self.builder.add(mania.instructions.BuildQuasiquoted())
 
     def compile_unquoted(self, code):
         self.compile_any(code.value)
 
-        self.builder.add(instructions.BuildUnquoted())
+        self.builder.add(mania.instructions.BuildUnquoted())
 
     def compile_constant(self, code):
         index = self.builder.constant(code)
 
-        self.builder.add(instructions.LoadConstant(index))
+        self.builder.add(mania.instructions.LoadConstant(index))
 
 
 class CallCompiler(Compiler):
@@ -132,33 +132,33 @@ class CallCompiler(Compiler):
     def compile(self, expression):
         n = -1
 
-        while expression != types.Nil():
+        while expression != mania.types.Nil():
             self.compile_any(expression.head)
 
-            if isinstance(expression.head, types.Pair):
-                self.builder.add(instructions.Eval())
+            if isinstance(expression.head, mania.types.Pair):
+                self.builder.add(mania.instructions.Eval())
 
             expression = expression.tail
             n += 1
 
-        self.builder.add(instructions.Call(n))
+        self.builder.add(mania.instructions.Call(n))
 
         return self.builder.module
 
     def compile_any(self, code):
-        if isinstance(code, types.Symbol):
+        if isinstance(code, mania.types.Symbol):
             self.compile_symbol(code)
 
-        elif isinstance(code, types.Quasiquoted):
+        elif isinstance(code, mania.types.Quasiquoted):
             pass
 
-        elif isinstance(code, types.Quoted):
+        elif isinstance(code, mania.types.Quoted):
             pass
 
-        elif isinstance(code, types.Unquoted):
+        elif isinstance(code, mania.types.Unquoted):
             pass
 
-        elif isinstance(code, types.Pair):
+        elif isinstance(code, mania.types.Pair):
             self.compile_pair(code)
 
         else:
@@ -167,16 +167,16 @@ class CallCompiler(Compiler):
     def compile_symbol(self, code):
         index = self.builder.constant(code)
 
-        self.builder.add(instructions.LoadConstant(index))
-        self.builder.add(instructions.Eval())
+        self.builder.add(mania.instructions.LoadConstant(index))
+        self.builder.add(mania.instructions.Eval())
 
     def compile_pair(self, code):
         self.compile_any(code.head)
         self.compile_any(code.tail)
 
-        self.builder.add(instructions.BuildPair())
+        self.builder.add(mania.instructions.BuildPair())
 
     def compile_constant(self, code):
         index = self.builder.constant(code)
 
-        self.builder.add(instructions.LoadConstant(index))
+        self.builder.add(mania.instructions.LoadConstant(index))

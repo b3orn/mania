@@ -2,14 +2,33 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import absolute_import
+import sys
+import logging
+import mania
 import mania.types as types
+import mania.instructions as instructions
 from mania.scanner import Scanner
 from mania.parser import Parser
 from mania.compiler import SimpleCompiler
+from mania.node import Node, LoadingDeferred
+from mania.frame import Scope
+import mania.builtins
+
+
+logger = logging.getLogger(__name__)
 
 
 def main():
-    source = '''`(test test:foo 2 ,+ #u) ;this is just a test'''
+    root = logging.getLogger()
+
+    root.setLevel(logging.DEBUG)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    root.addHandler(handler)
 
     source = '''(author "Björn Schulz <bjoern@fac3.org>")
 (copyright "2015 Björn Schulz")
@@ -17,7 +36,7 @@ def main():
 (version "0.1.0")
 (description "A simple hello world program in mania.")
 
-(define-module main (main)
+(define-module test (main)
     (import 'mania:io)
     (import 'mania:string)
 
@@ -35,7 +54,7 @@ def main():
 
     module = SimpleCompiler(types.Symbol('test')).compile(parser.parse())
 
-    filename = 'test.maniac'
+    filename = 'test.bam'
 
     with open(filename, 'wb') as stream:
         module.dump(stream)
@@ -43,8 +62,29 @@ def main():
     with open(filename, 'rb') as stream:
         loaded = types.Module.load(stream)
 
-    print len(module.constants), len(loaded.constants)
-    print len(module.instructions), len(loaded.instructions)
+    node = Node(1024, 1, [])
+
+    process = node.spawn_process(
+        code=module.code(
+            module.entry_point,
+            len(module) - module.entry_point
+        ),
+        scope=Scope(parent=mania.builtins.register_scope)
+    )
+
+    node.start()
+
+    try:
+        node.load_module(module.name)
+
+    except LoadingDeferred:
+        pass
+
+    node.start()
+
+    module = node.load_module(module.name)
+
+    print module.scope.locals.keys()
 
 
 if __name__ == '__main__':

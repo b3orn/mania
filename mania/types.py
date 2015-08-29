@@ -12,8 +12,10 @@ from __future__ import absolute_import
 import logging
 import io
 import struct
+import collections
 import mania.consts as consts
 import mania.instructions
+import mania.compiler
 
 
 logger = logging.getLogger(__name__)
@@ -31,7 +33,18 @@ def serializable(type):
     return _inner
 
 
+class MatchError(Exception):
+    pass
+
+
+class ExpandError(Exception):
+    pass
+
+
 class Type(object):
+
+    def __ne__(self, other):
+        return not (self == other)
 
     def __repr__(self):
         return self.to_string().value.encode('utf-8')
@@ -41,7 +54,10 @@ class Type(object):
 class Ellipsis(Type):
 
     def __eq__(self, other):
-        return isinstance(other, Undefined)
+        return isinstance(other, Ellipsis)
+
+    def __nonzero__(self):
+        return False
 
     @classmethod
     def load(cls, stream):
@@ -63,6 +79,9 @@ class Undefined(Type):
     def __eq__(self, other):
         return isinstance(other, Undefined)
 
+    def __nonzero__(self):
+        return False
+
     @classmethod
     def load(cls, stream):
         return cls()
@@ -82,6 +101,9 @@ class Nil(Type):
 
     def __eq__(self, other):
         return isinstance(other, Nil)
+
+    def __nonzero__(self):
+        return False
 
     @classmethod
     def load(cls, stream):
@@ -106,6 +128,9 @@ class Bool(Type):
     def __eq__(self, other):
         return isinstance(other, Bool) and self.value == other.value
 
+    def __nonzero__(self):
+        return self.value
+
     @classmethod
     def load(cls, stream):
         return cls(False if stream.read(1) == '\x00' else True)
@@ -128,6 +153,9 @@ class Integer(Type):
 
     def __eq__(self, other):
         return isinstance(other, Integer) and self.value == other.value
+
+    def __nonzero__(self):
+        return bool(self.value)
 
     @classmethod
     def load(cls, stream):
@@ -159,6 +187,9 @@ class Float(Type):
     def __eq__(self, other):
         return isinstance(other, Float) and self.value == other.value
 
+    def __nonzero__(self):
+        return bool(self.value)
+
     @classmethod
     def load(cls, stream):
         (value,) = struct.unpack('<d', stream.read(struct.calcsize('<d')))
@@ -172,7 +203,7 @@ class Float(Type):
         return Bool(self.value != 0)
 
     def to_string(self):
-        return String(str(self.value))
+        return String(unicode(self.value))
 
 
 @serializable(consts.SYMBOL)
@@ -186,6 +217,12 @@ class Symbol(Type):
 
     def __eq__(self, other):
         return isinstance(other, Symbol) and self.value == other.value
+
+    def __nonzero__(self):
+        return True
+
+    def __hash__(self):
+        return hash(self.value)
 
     @classmethod
     def load(cls, stream):
@@ -219,6 +256,9 @@ class String(Type):
 
     def __eq__(self, other):
         return isinstance(other, String) and self.value == other.value
+
+    def __nonzero__(self):
+        return bool(self.value)
 
     @classmethod
     def load(cls, stream):
@@ -275,7 +315,9 @@ class Pair(Type):
 
     def to_string(self):
         if isinstance(self.tail, (Pair, Nil)):
-            return String(u'({0})'.format(' '.join(map(repr, self))))
+            return String(u'({0})'.format(' '.join(
+                repr(e).decode('utf-8') for e in self
+            )))
 
         else:
             return String(u'({0} . {1})'.format(self.head, self.tail))
@@ -289,6 +331,9 @@ class Quoted(Type):
     def __init__(self, value):
         self.value = value
 
+    def __eq__(self, other):
+        return isinstance(other, Quoted) and self.value == other.value
+
     def to_bool(self):
         return Bool(True)
 
@@ -300,6 +345,9 @@ class Quasiquoted(Type):
 
     def __init__(self, value):
         self.value = value
+
+    def __eq__(self, other):
+        return isinstance(other, Quasiquoted) and self.value == other.value
 
     def to_bool(self):
         return Bool(True)
@@ -313,6 +361,9 @@ class Unquoted(Type):
     def __init__(self, value):
         self.value = value
 
+    def __eq__(self, other):
+        return isinstance(other, Unquoted) and self.value == other.value
+
     def to_bool(self):
         return Bool(True)
 
@@ -321,11 +372,19 @@ class Unquoted(Type):
 
 
 class Function(Type):
-    pass
+
+    def __init__(self, code, scope):
+        self.code = code
+        self.scope = scope
 
 
 class NativeFunction(Function):
-    pass
+
+    def __init__(self, function):
+        self.function = function
+
+    def __call__(self, *args):
+        return self.function(*args)
 
 
 class Macro(Type):
@@ -360,7 +419,7 @@ class Rule(object):
         return result
 
 
-class Pattern(Type):
+class Pattern(object):
 
     def __init__(self, pattern):
         self.pattern = pattern
@@ -386,15 +445,21 @@ class Pattern(Type):
     def match_pair(self, pattern, expression):
         result = collections.defaultdict(list)
 
-        if not isinstance(expression, Pair):
+        if not isinstance(expression, (Pair, Nil)):
             raise MatchError()
 
-        while pattern and expression:
+        while pattern and (expression or (isinstance(pattern.tail, Pair) and pattern.tail.head == Ellipsis())):
             if isinstance(pattern.tail, Pair) and pattern.tail.head == Ellipsis():
                 if pattern.tail.tail != Nil():
                     raise MatchError('ellipsis is greedy')
 
                 values = collections.defaultdict(list)
+
+                if not expression:
+                    bindings = self.match_pattern(pattern.head, pattern.head)
+
+                    for key in bindings:
+                        values[key] = []
 
                 while expression:
                     bindings = self.match_pattern(pattern.head, expression.head)
@@ -446,10 +511,24 @@ class Template(object):
         self.template = template
 
     def expand(self, bindings):
-        if isinstance(self.template, Quasiquoted):
-            return self.expand_template(self.template.value, bindings, None)
+        compiler = mania.compiler.SimpleCompiler(Nil())
 
-        return self.template
+        if isinstance(self.template, Quasiquoted):
+            compiler.compile_any(
+                self.expand_template(self.template.value, bindings, None)
+            )
+
+        else:
+            compiler.compile_any(self.template)
+
+        compiler.builder.add(mania.instructions.Eval())
+
+        module = compiler.builder.module
+
+        return module.code(
+            module.entry_point,
+            len(module) - module.entry_point
+        )
 
     def expand_template(self, template, bindings, index):
         if isinstance(template, Pair):
@@ -578,6 +657,9 @@ class Module(Type):
         self.instructions = instructions
         self.scope = scope
 
+    def __len__(self):
+        return len(self.instructions)
+
     @classmethod
     def load(cls, stream):
         if isinstance(stream, basestring):
@@ -649,7 +731,7 @@ class Module(Type):
         return self.scope.lookup(name)
 
     def code(self, entry_point=0, size=0):
-        return Code(self, entry_point, size)
+        return Code(self, entry_point, size or len(self) - entry_point)
 
 
 class NativeModule(Module):

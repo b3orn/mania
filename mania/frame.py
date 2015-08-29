@@ -10,7 +10,7 @@
 
 from __future__ import absolute_import
 import logging
-import mania.types as types
+import mania.types
 
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,15 @@ class Stack(object):
 
     def __init__(self, *values):
         self.stack = list(values)
+
+    def __len__(self):
+        return len(self.stack)
+
+    def __getitem__(self, index):
+        return self.stack[index]
+
+    def __repr__(self):
+        return repr(self.stack)
 
     def push(self, value):
         self.stack.append(value)
@@ -67,7 +76,7 @@ class Scope(object):
 
     def lookup(self, name):
         if name in self.locals:
-            if isinstance(self.locals[name], types.Annotation):
+            if isinstance(self.locals[name], mania.types.Annotation):
                 raise NameError('name {0!r} not defined'.format(name))
 
             return self.locals[name]
@@ -80,15 +89,15 @@ class Scope(object):
 
 class Frame(object):
 
-    def __init__(self, code, scope=None, parent=None):
+    def __init__(self, code, scope=None, stack=None, parent=None):
         self.code = code
         self.scope = scope or Scope(parent.scope if parent else None)
         self.parent = parent
         self.position = code.entry_point
-        self.stack = Stack()
+        self.stack = Stack() if stack is None else stack
 
     def define(self, name, value):
-        return self.scope.define(value)
+        return self.scope.define(name, value)
 
     def lookup(self, name):
         return self.scope.lookup(name)

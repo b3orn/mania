@@ -95,4 +95,5 @@ BUILD_RULE         = 0x87
 BUILD_PATTERN      = 0x88
 BUILD_TEMPLATE     = 0x89
 BUILD_CONTINUATION = 0x8a
+BUILD_MODULE       = 0x8b
 EVAL               = 0x90
