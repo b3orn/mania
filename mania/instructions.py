@@ -414,7 +414,13 @@ class Eval(Instruction):
             evalable = vm.frame.lookup(expression)
 
             if isinstance(evalable, mania.types.Macro):
-                pass
+                for code in reversed(evalable.expand(vm, expression)):
+                    vm.frame = mania.frame.Frame(
+                        parent=vm.frame,
+                        scope=vm.frame.scope,
+                        stack=vm.frame.stack,
+                        code=code
+                    )
 
             else:
                 vm.frame.push(evalable)
