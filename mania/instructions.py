@@ -166,6 +166,63 @@ class Exit(Instruction):
         raise node.Schedule()
 
 
+@opcode(consts.JUMP)
+class Jump(Instruction):
+
+    def __init__(self, position):
+        self.position = position
+
+    @property
+    def size(self):
+        return super(Jump, self).size + struct.calcsize('<I')
+
+    @classmethod
+    def load(cls, stream):
+        (number,) = struct.unpack('<I', stream.read(struct.calcsize('<I')))
+
+        return cls(number)
+
+    def dump(self, stream):
+        super(Jump, self).dump(stream)
+
+        stream.write(struct.pack('<I', self.number))
+
+    def eval(self, vm):
+        vm.frame.position = self.position
+
+
+@opcode(consts.JUMP_IF_NIL)
+class JumpIfNil(Jump):
+
+    def eval(self, vm):
+        if vm.frame.pop() == mania.types.Nil():
+            vm.frame.position = self.position
+
+
+@opcode(consts.JUMP_IF_TRUE)
+class JumpIfTrue(Jump):
+
+    def eval(self, vm):
+        if vm.frame.pop() == mania.types.Bool(True):
+            vm.frame.position = self.position
+
+
+@opcode(consts.JUMP_IF_FALSE)
+class JumpIfFalse(Jump):
+
+    def eval(self, vm):
+        if vm.frame.pop() == mania.types.Bool(False):
+            vm.frame.position = self.position
+
+
+@opcode(consts.JUMP_IF_EMPTY)
+class JumpIfEmpty(Jump):
+
+    def eval(self, vm):
+        if len(vm.frame.stack) == 0:
+            vm.frame.position = self.position
+
+
 @opcode(consts.CALL)
 class Call(Instruction):
 
