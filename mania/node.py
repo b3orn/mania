@@ -20,6 +20,7 @@ import Queue as queue
 import operator
 import traceback
 import mania.builtins
+import mania.instructions
 from mania.frame import Frame, Scope, Stack
 
 
@@ -315,18 +316,50 @@ class VM(object):
     def __init__(self, process, code, scope):
         self.process = process
         self.frame = Frame(code=code, scope=scope)
+        self.switches = 0
 
     def tick(self):
         instruction = self.frame.code[self.frame.position]
 
         self.frame.position += 1
 
+        frame = self.frame
+
         instruction.eval(self)
 
         limit = self.frame.code.entry_point + self.frame.code.size
 
         if self.frame.position >= limit:
+            self.switches += 1
+
             self.restore()
+
+            return
+
+        if self.frame is not frame:
+            self.switches += 1
+
+            if frame.position < frame.code.entry_point + frame.code.size:
+                next = frame.code[frame.position]
+                last = self.frame.code[limit - 1]
+
+                if isinstance(next, mania.instructions.Return):
+                    if isinstance(last, mania.instructions.Return):
+                        self.frame.parent = frame.parent
+
+                    elif isinstance(last, mania.instructions.Restore):
+                        self.frame.parent = frame.parent
+                        self.frame.code.module.instructions[limit - 1] = next
+
+                elif isinstance(next, mania.instructions.Restore):
+                    if isinstance(last, mania.instructions.Restore):
+                        self.frame.parent = frame.parent
+
+            else:
+                last = self.frame.code[self.frame.code.entry_point + self.frame.code.size - 1]
+
+                if not isinstance(last, mania.instructions.Return):
+                    self.frame.parent = frame.parent
 
     def run(self, ticks):
         for tick in xrange(ticks):
@@ -343,11 +376,16 @@ class VM(object):
 
         return ticks - (tick + 1)
 
-    def restore(self):
-        if self.frame.parent:
-            self.frame = self.frame.parent
+    def restore(self, frame=None):
+        if frame is None:
+            frame = self.frame.parent
+        
+        if frame:
+            self.frame = frame
 
         else:
+            print 'switch', self.switches
+
             self.process.kill()
 
             raise Schedule()

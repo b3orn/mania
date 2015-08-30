@@ -142,7 +142,7 @@ def define_function(vm, bindings):
         compiler.compile_any(node)
         compiler.builder.add(mania.instructions.Eval())
 
-    compiler.builder.add(mania.instructions.Return(1))
+    compiler.builder.add(mania.instructions.Return())
 
     entry_point = compiler.builder.index()
 
@@ -225,7 +225,7 @@ def lambda_(vm, bindings):
         compiler.compile_any(node)
         compiler.builder.add(mania.instructions.Eval())
 
-    compiler.builder.add(mania.instructions.Return(1))
+    compiler.builder.add(mania.instructions.Return())
 
     entry_point = compiler.builder.index()
 
@@ -313,6 +313,13 @@ add_macro = mania.types.NativeMacro([
 ])
 
 
+def add(x, y):
+    return [x.add(y)]
+
+
+add_macro = mania.types.NativeFunction(add)
+
+
 def sub(vm, bindings):
     compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
 
@@ -340,6 +347,13 @@ sub_macro = mania.types.NativeMacro([
         sub
     )
 ])
+
+
+def sub(x, y):
+    return [x.sub(y)]
+
+
+sub_macro = mania.types.NativeFunction(sub)
 
 
 def mul(vm, bindings):
@@ -371,6 +385,13 @@ mul_macro = mania.types.NativeMacro([
 ])
 
 
+def mul(x, y):
+    return [x.mul(y)]
+
+
+mul_macro = mania.types.NativeFunction(mul)
+
+
 def let(vm, bindings):
     variables = list(bindings[mania.types.Symbol('variables')] or [])
     values = list(bindings[mania.types.Symbol('values')] or [])
@@ -389,7 +410,7 @@ def let(vm, bindings):
         compiler.compile_any(node)
         compiler.builder.add(mania.instructions.Eval())
 
-    compiler.builder.add(mania.instructions.Return(1))
+    compiler.builder.add(mania.instructions.Return())
 
     size = compiler.builder.index()
 
@@ -411,7 +432,7 @@ def let(vm, bindings):
         compiler.builder.add(mania.instructions.Eval())
 
     compiler.builder.add(mania.instructions.Call(len(values)))
-    compiler.builder.add(mania.instructions.Return(1))
+    compiler.builder.add(mania.instructions.Return())
 
     entry_point = compiler.builder.index()
 
@@ -491,7 +512,7 @@ def if_(vm, bindings):
             compiler.builder.constant(mania.types.Undefined())
         ))
 
-    end = compiler.builder.add(mania.instructions.Nop())
+    end = compiler.builder.add(mania.instructions.Restore())
 
     compiler.builder.replace(end_jump, mania.instructions.Jump(end))
 
@@ -577,6 +598,8 @@ and_macro = mania.types.NativeMacro([
 
 def println(*args):
     print ' '.join(map(str, args))
+
+    return mania.types.Undefined()
 
 
 def equal(x, y):

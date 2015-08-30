@@ -82,6 +82,7 @@ SEND               = 0x62
 RECEIVE            = 0x63
 BLOCK              = 0x64
 YIELD              = 0x65
+RESTORE            = 0x66
 HEAD               = 0x70
 TAIL               = 0x71
 UNPACK             = 0x72

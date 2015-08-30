@@ -373,30 +373,19 @@ class Call(Instruction):
 @opcode(consts.RETURN)
 class Return(Instruction):
 
-    def __init__(self, number):
-        self.number = number
-
-    @property
-    def size(self):
-        return super(Call, self).size + struct.calcsize('<I')
-
-    @classmethod
-    def load(cls, stream):
-        (number,) = struct.unpack('<I', stream.read(struct.calcsize('<I')))
-
-        return cls(number)
-
-    def dump(self, stream):
-        super(Call, self).dump(stream)
-
-        stream.write(struct.pack('<I', self.number))
-
     def eval(self, vm):
-        args = vm.frame.stack[-self.number:][::-1]
+        value = vm.frame.stack.pop()
 
         vm.restore()
 
-        vm.frame.stack.extend(args)
+        vm.frame.stack.push(value)
+
+
+@opcode(consts.RESTORE)
+class Restore(Instruction):
+
+    def eval(self, vm):
+        vm.restore()
 
 
 @opcode(consts.EVAL)

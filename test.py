@@ -51,7 +51,7 @@ def main():
         ;(let ((m 1) (n 0))
         ;    (println "ackermann" m n (a m n)))
 
-        (let ((n 20))
+        (let ((n 30))
             (println "factorial" n (factorial n)))
 
         (let loop ((n 10))
