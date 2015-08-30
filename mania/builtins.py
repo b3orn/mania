@@ -562,6 +562,8 @@ def and_(vm, bindings):
         compiler.builder.constant(mania.types.Bool(True))
     ))
 
+    compiler.builder.add(mania.instructions.Restore())
+
     false_position = compiler.builder.add(mania.instructions.LoadConstant(
         compiler.builder.constant(mania.types.Bool(False))
     ))
@@ -622,7 +624,7 @@ default_scope = mania.frame.Scope(locals={
     mania.types.Symbol('+'): add_macro,
     mania.types.Symbol('-'): sub_macro,
     mania.types.Symbol('*'): mul_macro,
-    mania.types.Symbol('println'): mania.types.NativeFunction(println),
+    mania.types.Symbol('println'): mania.types.NativeFunction(println, name='println'),
     mania.types.Symbol('=='): mania.types.NativeFunction(equal),
     mania.types.Symbol('/='): mania.types.NativeFunction(not_equal),
     mania.types.Symbol('>'): mania.types.NativeFunction(greater),

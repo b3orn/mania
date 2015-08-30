@@ -47,9 +47,15 @@ def main():
     (define (main)
         (println let)
 
-        ; Didn't finish after 25 minutes. VM needs to be optimized.
-        ;(let ((m 1) (n 0))
-        ;    (println "ackermann" m n (a m n)))
+        (let ((m 1) (n 1))
+            (println "ackermann" m n (a m n)))
+
+        (let ((m 1) (n 0))
+            (if (== m 0)
+                (println "m = 0" m n)
+                (if (and (> m 0) (== n 0))
+                    (println "m > 0 and n = 0" m n)
+                    (println "m > 0 and n > 0" m n))))
 
         (let ((n 30))
             (println "factorial" n (factorial n)))

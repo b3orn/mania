@@ -339,9 +339,10 @@ class VM(object):
         if self.frame is not frame:
             self.switches += 1
 
+            last = self.frame.code[limit - 1]
+
             if frame.position < frame.code.entry_point + frame.code.size:
                 next = frame.code[frame.position]
-                last = self.frame.code[limit - 1]
 
                 if isinstance(next, mania.instructions.Return):
                     if isinstance(last, mania.instructions.Return):
@@ -356,8 +357,6 @@ class VM(object):
                         self.frame.parent = frame.parent
 
             else:
-                last = self.frame.code[self.frame.code.entry_point + self.frame.code.size - 1]
-
                 if not isinstance(last, mania.instructions.Return):
                     self.frame.parent = frame.parent
 

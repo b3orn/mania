@@ -684,6 +684,9 @@ class Code(Type):
         self.entry_point = entry_point
         self.size = size
 
+    def to_string(self):
+        return String(u'(code)')
+
     def __eq__(self, other):
         return (
             isinstance(other, Code) and
@@ -714,6 +717,9 @@ class Module(Type):
         self.constants = constants
         self.instructions = instructions
         self.scope = scope
+
+    def to_string(self):
+        return String(u'(module)')
 
     def __len__(self):
         return len(self.instructions)
