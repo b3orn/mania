@@ -524,6 +524,56 @@ if_macro = mania.types.NativeMacro([
 ])
 
 
+def and_(vm, bindings):
+    compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
+
+    compiler.compile_any(bindings[mania.types.Symbol('left')])
+    compiler.builder.add(mania.instructions.Eval())
+
+    left_false = compiler.builder.add(None)
+
+    compiler.compile_any(bindings[mania.types.Symbol('right')])
+    compiler.builder.add(mania.instructions.Eval())
+
+    right_false = compiler.builder.add(None)
+
+    compiler.builder.add(mania.instructions.LoadConstant(
+        compiler.builder.constant(mania.types.Bool(True))
+    ))
+
+    false_position = compiler.builder.add(mania.instructions.LoadConstant(
+        compiler.builder.constant(mania.types.Bool(False))
+    ))
+
+    compiler.builder.replace(
+        left_false,
+        mania.instructions.JumpIfFalse(false_position)
+    )
+
+    compiler.builder.replace(
+        right_false,
+        mania.instructions.JumpIfFalse(false_position)
+    )
+
+    module = compiler.builder.module
+
+    return [module.code(
+        module.entry_point,
+        len(module)
+    )]
+
+
+and_macro = mania.types.NativeMacro([
+    mania.types.NativeRule(
+        mania.types.Pattern(mania.types.Pair.from_sequence([
+            mania.types.Symbol('_'),
+            mania.types.Symbol('left'),
+            mania.types.Symbol('right')
+        ])),
+        and_
+    )
+])
+
 
 def println(*args):
     print ' '.join(map(str, args))
@@ -537,6 +587,10 @@ def not_equal(x, y):
     return [mania.types.Bool(x != y)]
 
 
+def greater(x, y):
+    return [mania.types.Bool(x > y)]
+
+
 default_scope = mania.frame.Scope(locals={
     mania.types.Symbol('define-module'): define_module_macro,
     mania.types.Symbol('define'): define_macro,
@@ -548,6 +602,8 @@ default_scope = mania.frame.Scope(locals={
     mania.types.Symbol('println'): mania.types.NativeFunction(println),
     mania.types.Symbol('=='): mania.types.NativeFunction(equal),
     mania.types.Symbol('/='): mania.types.NativeFunction(not_equal),
+    mania.types.Symbol('>'): mania.types.NativeFunction(greater),
     mania.types.Symbol('let'): let_macro,
-    mania.types.Symbol('if'): if_macro
+    mania.types.Symbol('if'): if_macro,
+    mania.types.Symbol('and'): and_macro
 })

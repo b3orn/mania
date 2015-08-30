@@ -152,7 +152,10 @@ class Integer(Type):
         self.value = value
 
     def __eq__(self, other):
-        return isinstance(other, Integer) and self.value == other.value
+        return isinstance(other, (Integer, Float)) and self.value == other.value
+
+    def __gt__(self, other):
+        return isinstance(other, (Integer, Float)) and self.value > other.value
 
     def __nonzero__(self):
         return bool(self.value)
@@ -200,7 +203,10 @@ class Float(Type):
         self.value = value
 
     def __eq__(self, other):
-        return isinstance(other, Float) and self.value == other.value
+        return isinstance(other, (Integer, Float)) and self.value == other.value
+
+    def __gt__(self, other):
+        return isinstance(other, (Integer, Float)) and self.value > other.value
 
     def __nonzero__(self):
         return bool(self.value)

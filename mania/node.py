@@ -335,7 +335,7 @@ class VM(object):
 
             except Schedule:
                 logger.info('schedule at tick {0}/{1}'.format(
-                    ticks - (tick + 1),
+                    tick + 1,
                     ticks
                 ))
 

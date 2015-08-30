@@ -31,8 +31,28 @@ def main():
     root.addHandler(handler)
 
     source = '''(define-module test (main)
+    ; See https://en.wikipedia.org/wiki/Ackermann_function for more details.
+    (define (a m n)
+        (if (== m 0)
+            (+ n 1)
+            (if (and (> m 0) (== n 0))
+                (a (- m 1) 1)
+                (a (- m 1) (a m (- n 1))))))
+
+    (define (factorial n)
+        (if (== n 0)
+            1
+            (* n (factorial (- n 1)))))
+
     (define (main)
         (println let)
+
+        ; Didn't finish after 25 minutes. VM needs to be optimized.
+        ;(let ((m 1) (n 0))
+        ;    (println "ackermann" m n (a m n)))
+
+        (let ((n 20))
+            (println "factorial" n (factorial n)))
 
         (let loop ((n 10))
             (println "Hello world!")
@@ -57,7 +77,7 @@ def main():
     with open(filename, 'rb') as stream:
         loaded = types.Module.load(stream)
 
-    node = Node(1024, 1, [])
+    node = Node(2**32, 1, [])
 
     process = node.spawn_process(
         code=module.code(
