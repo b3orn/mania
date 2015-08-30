@@ -41,7 +41,9 @@ def main():
                 (println "Last one")))
 
         (let ((a 5) (b 2) (c 32))
-            (println (+ (* a b) c)))))'''
+            (println (+ (* a b) c)))
+
+        (println ((lambda (x) (* x x)) 5))))'''
 
     parser = Parser(Scanner(source))
 

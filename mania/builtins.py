@@ -151,6 +151,9 @@ def define_function(vm, bindings):
     compiler.builder.add(mania.instructions.Store(
         compiler.builder.constant(name)
     ))
+    compiler.builder.add(mania.instructions.Load(
+        compiler.builder.constant(name)
+    ))
 
     module = compiler.builder.module
 
@@ -168,6 +171,9 @@ def define_value(vm, bindings):
     compiler.compile_any(bindings[mania.types.Symbol('value')])
     compiler.builder.add(mania.instructions.Eval())
     compiler.builder.add(mania.instructions.Store(compiler.builder.constant(
+        bindings[mania.types.Symbol('name')]
+    )))
+    compiler.builder.add(mania.instructions.Load(compiler.builder.constant(
         bindings[mania.types.Symbol('name')]
     )))
 
@@ -200,6 +206,54 @@ define_macro = mania.types.NativeMacro([
             mania.types.Symbol('value')
         ])),
         define_value
+    )
+])
+
+
+def lambda_(vm, bindings):
+    parameters = bindings[mania.types.Symbol('parameters')] or []
+    body = bindings[mania.types.Symbol('body')] or []
+
+    compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
+
+    for i, parameter in enumerate(parameters):
+        compiler.builder.add(mania.instructions.Store(
+            compiler.builder.constant(parameter)
+        ))
+
+    for node in body:
+        compiler.compile_any(node)
+        compiler.builder.add(mania.instructions.Eval())
+
+    compiler.builder.add(mania.instructions.Return(1))
+
+    entry_point = compiler.builder.index()
+
+    compiler.builder.add(mania.instructions.LoadCode(0, entry_point))
+    compiler.builder.add(mania.instructions.BuildFunction())
+
+    module = compiler.builder.module
+
+    module.entry_point = entry_point
+
+    return [module.code(
+        module.entry_point,
+        len(module) - module.entry_point
+    )]
+
+
+lambda_macro = mania.types.NativeMacro([
+    mania.types.NativeRule(
+        mania.types.Pattern(mania.types.Pair.from_sequence([
+            mania.types.Symbol('_'),
+            mania.types.Pair.from_sequence([
+                mania.types.Symbol('parameters'),
+                mania.types.Ellipsis()
+            ]),
+            mania.types.Symbol('body'),
+            mania.types.Ellipsis()
+        ])),
+        lambda_
     )
 ])
 
@@ -486,6 +540,7 @@ def not_equal(x, y):
 default_scope = mania.frame.Scope(locals={
     mania.types.Symbol('define-module'): define_module_macro,
     mania.types.Symbol('define'): define_macro,
+    mania.types.Symbol('lambda'): lambda_macro,
     mania.types.Symbol('import'): import_macro,
     mania.types.Symbol('+'): add_macro,
     mania.types.Symbol('-'): sub_macro,
