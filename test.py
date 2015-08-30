@@ -45,17 +45,8 @@ def main():
             (* n (factorial (- n 1)))))
 
     (define (main)
-        (println let)
-
-        (let ((m 1) (n 1))
+        (let ((m 3) (n 4))
             (println "ackermann" m n (a m n)))
-
-        (let ((m 1) (n 0))
-            (if (== m 0)
-                (println "m = 0" m n)
-                (if (and (> m 0) (== n 0))
-                    (println "m > 0 and n = 0" m n)
-                    (println "m > 0 and n > 0" m n))))
 
         (let ((n 30))
             (println "factorial" n (factorial n)))
