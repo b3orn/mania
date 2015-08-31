@@ -44,8 +44,17 @@ def main():
             1
             (* n (factorial (- n 1)))))
 
+    (define (greeter name)
+        (lambda (f)
+            (f (format "Hello {0}!" name))))
+
     (define (main)
-        (let ((m 3) (n 4))
+        (let ((world (greeter "world"))
+              (foo (greeter "foo")))
+            (world (lambda (n) (println n)))
+            (foo (lambda (n) (println n))))
+
+        (let ((m 3) (n 2))
             (println "ackermann" m n (a m n)))
 
         (let ((n 30))

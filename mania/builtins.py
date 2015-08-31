@@ -314,7 +314,7 @@ add_macro = mania.types.NativeMacro([
 
 
 def add(x, y):
-    return [x.add(y)]
+    return x.add(y)
 
 
 add_macro = mania.types.NativeFunction(add)
@@ -350,7 +350,7 @@ sub_macro = mania.types.NativeMacro([
 
 
 def sub(x, y):
-    return [x.sub(y)]
+    return x.sub(y)
 
 
 sub_macro = mania.types.NativeFunction(sub)
@@ -386,7 +386,7 @@ mul_macro = mania.types.NativeMacro([
 
 
 def mul(x, y):
-    return [x.mul(y)]
+    return x.mul(y)
 
 
 mul_macro = mania.types.NativeFunction(mul)
@@ -591,16 +591,20 @@ def println(*args):
     return mania.types.Undefined()
 
 
+def format(format, *args):
+    return mania.types.String(format.value.format(*args))
+
+
 def equal(x, y):
-    return [mania.types.Bool(x == y)]
+    return mania.types.Bool(x == y)
 
 
 def not_equal(x, y):
-    return [mania.types.Bool(x != y)]
+    return mania.types.Bool(x != y)
 
 
 def greater(x, y):
-    return [mania.types.Bool(x > y)]
+    return mania.types.Bool(x > y)
 
 
 default_scope = mania.frame.Scope(locals={
@@ -611,7 +615,8 @@ default_scope = mania.frame.Scope(locals={
     mania.types.Symbol('+'): add_macro,
     mania.types.Symbol('-'): sub_macro,
     mania.types.Symbol('*'): mul_macro,
-    mania.types.Symbol('println'): mania.types.NativeFunction(println, name='println'),
+    mania.types.Symbol('println'): mania.types.NativeFunction(println),
+    mania.types.Symbol('format'): mania.types.NativeFunction(format),
     mania.types.Symbol('=='): mania.types.NativeFunction(equal),
     mania.types.Symbol('/='): mania.types.NativeFunction(not_equal),
     mania.types.Symbol('>'): mania.types.NativeFunction(greater),

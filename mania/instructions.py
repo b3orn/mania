@@ -358,8 +358,12 @@ class Call(Instruction):
         callable = vm.frame.pop()
 
         if isinstance(callable, mania.types.NativeFunction):
-            for item in callable(*args[::-1]) or [mania.types.Undefined()]:
-                vm.frame.push(item)
+            result = callable(*args[::-1])
+
+            if result is None:
+                result = mania.types.Undefined()
+
+            vm.frame.push(result)
 
         else:
             vm.frame = mania.frame.Frame(
