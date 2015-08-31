@@ -83,21 +83,21 @@ class StackOperation(Instruction):
 class Duplicate(StackOperation):
 
     def eval(self, vm):
-        vm.frame.stack.extend(vm.frame.stack[-self.number:])
+        vm.frame.stack.extend(vm.frame.stack[-self.count:])
 
 
 @opcode(consts.ROTATE)
 class Rotate(StackOperation):
 
     def eval(self, vm):
-        vm.frame.stack[-self.number:] = vm.frame.stack[-self.number:][::-1]
+        vm.frame.stack[-self.number:] = vm.frame.stack[-self.count:][::-1]
 
 
 @opcode(consts.POP)
 class Pop(StackOperation):
 
     def eval(self, vm):
-        for _ in xrange(self.number):
+        for _ in xrange(self.count):
             vm.frame.pop()
 
 

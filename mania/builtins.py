@@ -550,32 +550,19 @@ def and_(vm, bindings):
 
     compiler.compile_any(bindings[mania.types.Symbol('left')])
     compiler.builder.add(mania.instructions.Eval())
+    compiler.builder.add(mania.instructions.Duplicate(1))
 
     left_false = compiler.builder.add(None)
 
+    compiler.builder.add(mania.instructions.Pop(1))
     compiler.compile_any(bindings[mania.types.Symbol('right')])
     compiler.builder.add(mania.instructions.Eval())
 
-    right_false = compiler.builder.add(None)
-
-    compiler.builder.add(mania.instructions.LoadConstant(
-        compiler.builder.constant(mania.types.Bool(True))
-    ))
-
-    compiler.builder.add(mania.instructions.Restore())
-
-    false_position = compiler.builder.add(mania.instructions.LoadConstant(
-        compiler.builder.constant(mania.types.Bool(False))
-    ))
+    end = compiler.builder.add(mania.instructions.Restore())
 
     compiler.builder.replace(
         left_false,
-        mania.instructions.JumpIfFalse(false_position)
-    )
-
-    compiler.builder.replace(
-        right_false,
-        mania.instructions.JumpIfFalse(false_position)
+        mania.instructions.JumpIfFalse(end)
     )
 
     module = compiler.builder.module
