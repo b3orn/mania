@@ -350,7 +350,12 @@ class VM(object):
 
                     elif isinstance(last, mania.instructions.Restore):
                         self.frame.parent = frame.parent
-                        self.frame.code.module.instructions[limit - 1] = next
+
+                        for i in xrange(self.frame.code.entry_point, limit):
+                            instruction = self.frame.code[i]
+
+                            if isinstance(instruction, mania.instructions.Restore):
+                                self.frame.code[i] = next
 
                 elif isinstance(next, mania.instructions.Restore):
                     if isinstance(last, mania.instructions.Restore):

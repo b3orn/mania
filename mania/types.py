@@ -708,6 +708,16 @@ class Code(Type):
         else:
             return self.module.instructions[index]
 
+    def __setitem__(self, index, instruction):
+        if index < self.entry_point:
+            raise IndexError('Index below entry point')
+
+        elif index >= self.entry_point + self.size:
+            raise IndexError('Index out of bounds')
+
+        else:
+            self.module.instructions[index] = instruction
+
 
 class Module(Type):
 
