@@ -459,7 +459,7 @@ class Macro(Type):
         raise MatchError()
 
 
-class Rule(object):
+class Rule(Type):
 
     def __init__(self, pattern, templates):
         self.pattern = pattern
@@ -475,7 +475,7 @@ class Rule(object):
         return result
 
 
-class Pattern(object):
+class Pattern(Type):
 
     def __init__(self, pattern):
         self.pattern = pattern

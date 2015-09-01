@@ -134,6 +134,55 @@ define_module_macro = mania.types.NativeMacro([
 ])
 
 
+def define_syntax(vm, bindings):
+    rules = zip(
+        bindings[mania.types.Symbol('pattern')],
+        bindings[mania.types.Symbol('template')]
+    )
+
+    compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
+
+    for pattern, templates in rules:
+        compiler.compile_any(pattern)
+        compiler.builder.add(mania.instructions.BuildPattern())
+
+        for template in templates:
+            compiler.compile_any(template)
+
+        compiler.builder.add(mania.instructions.BuildTemplate(len(templates)))
+        compiler.builder.add(mania.instructions.BuildRule())
+
+    compiler.builder.add(mania.instructions.BuildMacro(len(rules)))
+    compiler.builder.add(mania.instructions.Duplicate(1))
+    compiler.builder.add(mania.instructions.Store(
+        compiler.builder.constant(bindings[mania.types.Symbol('name')])
+    ))
+
+    module = compiler.builder.module
+
+    return [module.code(
+        module.entry_point,
+        len(module) - module.entry_point
+    )]
+
+
+define_syntax_macro = mania.types.NativeMacro([
+    mania.types.NativeRule(
+        mania.types.Pattern(mania.types.Pair.from_sequence([
+            mania.types.Symbol('_'),
+            mania.types.Symbol('name'),
+            mania.types.Pair.from_sequence([
+                mania.types.Symbol('pattern'),
+                mania.types.Symbol('template'),
+                mania.types.Ellipsis()
+            ]),
+            mania.types.Ellipsis()
+        ])),
+        define_syntax
+    )
+])
+
+
 def define_function(vm, bindings):
     name = bindings[mania.types.Symbol('name')]
     parameters = bindings[mania.types.Symbol('parameters')] or []
@@ -164,7 +213,9 @@ def define_function(vm, bindings):
 
             compiler.builder.add(mania.instructions.Jump(loop))
 
-            index = compiler.compile_any(mania.types.Nil())
+            index = compiler.builder.index()
+
+            compiler.compile_any(mania.types.Nil())
 
         store = compiler.builder.add(mania.instructions.Reverse())
 
@@ -283,7 +334,9 @@ def lambda_(vm, bindings):
 
             compiler.builder.add(mania.instructions.Jump(loop))
 
-            index = compiler.compile_any(mania.types.Nil())
+            index = compiler.builder.index()
+
+            compiler.compile_any(mania.types.Nil())
 
         store = compiler.builder.add(mania.instructions.Reverse())
 
@@ -695,11 +748,20 @@ def greater(x, y):
     return mania.types.Bool(x > y)
 
 
+def head(list):
+    return list.head
+
+
+def tail(list):
+    return list.tail
+
+
 default_scope = mania.frame.Scope(locals={
     mania.types.Symbol('define-module'): define_module_macro,
     mania.types.Symbol('define'): define_macro,
     mania.types.Symbol('lambda'): lambda_macro,
     mania.types.Symbol('import'): import_macro,
+    mania.types.Symbol('define-syntax'): define_syntax_macro,
     mania.types.Symbol('+'): add_macro,
     mania.types.Symbol('-'): sub_macro,
     mania.types.Symbol('*'): mul_macro,
@@ -708,6 +770,8 @@ default_scope = mania.frame.Scope(locals={
     mania.types.Symbol('=='): mania.types.NativeFunction(equal),
     mania.types.Symbol('/='): mania.types.NativeFunction(not_equal),
     mania.types.Symbol('>'): mania.types.NativeFunction(greater),
+    mania.types.Symbol('head'): mania.types.NativeFunction(head),
+    mania.types.Symbol('tail'): mania.types.NativeFunction(tail),
     mania.types.Symbol('let'): let_macro,
     mania.types.Symbol('if'): if_macro,
     mania.types.Symbol('and'): and_macro

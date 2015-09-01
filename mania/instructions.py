@@ -286,6 +286,69 @@ class BuildFunction(Instruction):
         vm.frame.push(mania.types.Function(code, vm.frame.scope))
 
 
+@opcode(consts.BUILD_MACRO)
+class BuildMacro(Instruction):
+
+    def __init__(self, count):
+        self.count = count
+
+    @property
+    def size(self):
+        return super(BuildMacro, self).size + struct.calcsize('<I')
+
+    @classmethod
+    def load(cls, stream):
+        (count,) = struct.unpack('<I', stream.read(struct.calcsize('<I')))
+
+        return cls(count)
+
+    def eval(self, vm):
+        rules = [vm.frame.pop() for _ in xrange(self.count)][::-1]
+
+        vm.frame.push(mania.types.Macro(rules))
+
+
+@opcode(consts.BUILD_RULE)
+class BuildRule(Instruction):
+
+    def eval(self, vm):
+        templates = vm.frame.pop()
+        pattern = vm.frame.pop()
+
+        vm.frame.push(mania.types.Rule(pattern, templates))
+
+
+@opcode(consts.BUILD_PATTERN)
+class BuildPattern(Instruction):
+
+    def eval(self, vm):
+        vm.frame.push(mania.types.Pattern(vm.frame.pop()))
+
+
+@opcode(consts.BUILD_TEMPLATE)
+class BuildTemplate(Instruction):
+
+    def __init__(self, count):
+        self.count = count
+
+    @property
+    def size(self):
+        return super(BuildTemplate, self).size + struct.calcsize('<I')
+
+    @classmethod
+    def load(cls, stream):
+        (count,) = struct.unpack('<I', stream.read(struct.calcsize('<I')))
+
+        return cls(count)
+
+    def eval(self, vm):
+        templates = [vm.frame.pop() for _ in xrange(self.count)][::-1]
+
+        vm.frame.push([
+            mania.types.Template(template) for template in templates
+        ])
+
+
 @opcode(consts.EXIT)
 class Exit(Instruction):
 
@@ -430,6 +493,32 @@ class Call(Instruction):
             )
 
 
+@opcode(consts.APPLY)
+class Apply(Call):
+
+    def eval(self, vm):
+        list = (vm.frame.pop() or [])[::-1]
+        args = list + [vm.frame.pop() for _ in xrange(self.number)]
+
+        callable = vm.frame.pop()
+
+        if isinstance(callable, mania.types.NativeFunction):
+            result = callable(*args[::-1])
+
+            if result is None:
+                result = mania.types.Undefined()
+
+            vm.frame.push(result)
+
+        else:
+            vm.frame = mania.frame.Frame(
+                parent=vm.frame,
+                scope=mania.frame.Scope(parent=callable.scope),
+                code=callable.code,
+                stack=mania.frame.Stack(args)
+            )
+
+
 @opcode(consts.RETURN)
 class Return(Instruction):
 
@@ -453,50 +542,65 @@ class Reverse(Instruction):
 
     def eval(self, vm):
         if isinstance(vm.frame.peek(), mania.types.Pair):
-            vm.frame.push(mania.types.Pair.from_sequence(
-                list(reversed(vm.frame.pop()))
-            ))
+            vm.frame.push(mania.types.Pair.from_sequence(vm.frame.pop()[::-1]))
 
 
 @opcode(consts.EVAL)
 class Eval(Instruction):
+
+    def compile_call(self, vm, expression):
+        compiler = mania.compiler.SimpleCompiler(None)
+
+        n = -1
+        call = True
+
+        while expression != mania.types.Nil():
+            if expression.head == mania.types.Ellipsis():
+                if expression.tail != mania.types.Nil():
+                    raise mania.types.ExpandError()
+
+                call = False
+                n -= 1
+
+                break
+
+            compiler.compile_any(expression.head)
+
+            compiler.builder.add(Eval())
+
+            expression = expression.tail
+            n += 1
+
+        if call:
+            compiler.builder.add(Call(n))
+
+        else:
+            compiler.builder.add(Apply(n))
+
+        module = compiler.builder.module
+
+        vm.frame = mania.frame.Frame(
+            parent=vm.frame,
+            scope=vm.frame.scope,
+            stack=vm.frame.stack,
+            code=module.code(
+                module.entry_point,
+                len(module) - module.entry_point
+            )
+        )
 
     def eval(self, vm):
         expression = vm.frame.pop()
 
         if isinstance(expression, mania.types.Pair):
             if isinstance(expression.head, mania.types.Pair):
-                compiler = mania.compiler.SimpleCompiler(None)
-
-                n = -1
-
-                while expression != mania.types.Nil():
-                    compiler.compile_any(expression.head)
-
-                    compiler.builder.add(Eval())
-
-                    expression = expression.tail
-                    n += 1
-
-                compiler.builder.add(Call(n))
-
-                module = compiler.builder.module
-
-                vm.frame = mania.frame.Frame(
-                    parent=vm.frame,
-                    scope=vm.frame.scope,
-                    stack=vm.frame.stack,
-                    code=module.code(
-                        module.entry_point,
-                        len(module) - module.entry_point
-                    )
-                )
+                self.compile_call(vm, expression)
 
             elif isinstance(expression.head, mania.types.Symbol):
                 evalable = vm.frame.lookup(expression.head)
 
                 if isinstance(evalable, mania.types.Macro):
-                    result = list(reversed(evalable.expand(vm, expression) or []))
+                    result = (evalable.expand(vm, expression) or [])[::-1]
 
                     if result:
                         for code in result:
@@ -511,28 +615,7 @@ class Eval(Instruction):
                         vm.frame.push(mania.types.Undefined())
 
                 elif isinstance(evalable, mania.types.Function):
-                    compiler = mania.compiler.SimpleCompiler(None)
-
-                    n = -1
-
-                    while expression != mania.types.Nil():
-                        compiler.compile_any(expression.head)
-
-                        compiler.builder.add(Eval())
-
-                        expression = expression.tail
-                        n += 1
-
-                    compiler.builder.add(Call(n))
-
-                    module = compiler.builder.module
-
-                    vm.frame = mania.frame.Frame(
-                        parent=vm.frame,
-                        scope=vm.frame.scope,
-                        stack=vm.frame.stack,
-                        code=module.code(module.entry_point, len(module))
-                    )
+                    self.compile_call(vm, expression)
 
                 else:
                     raise SyntaxError('{0} is not callable'.format(
@@ -549,7 +632,7 @@ class Eval(Instruction):
                 evalable = vm.frame.lookup(expression)
 
             except NameError:
-                name = name.value
+                name = expression.value
                 scope = vm.frame
 
                 while name:
@@ -566,7 +649,7 @@ class Eval(Instruction):
 
             if isinstance(evalable, mania.types.Macro):
                 try:
-                    result = list(reversed(evalable.expand(vm, expression) or []))
+                    result = (evalable.expand(vm, expression) or [])[::-1]
 
                     if result:
                         for code in result:
@@ -599,6 +682,7 @@ class Eval(Instruction):
             vm.frame.push(expression)
 
 
+@opcode(consts.BUILD_MODULE)
 class BuildModule(Instruction):
 
     def eval(self, vm):

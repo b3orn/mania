@@ -50,7 +50,25 @@ def main():
 
     (define (list e ...) e)
 
+    (define-syntax sum
+        ((_ x y) `(+ ,x ,y))
+        ((sum x rest ...) `(+ ,x (,sum ,rest ...))))
+
+    (define (arity-test l ...)
+        (if (== l #n)
+            (println "nil")
+            (println "not nil")))
+
     (define (main)
+        (arity-test) ; nil
+        (arity-test 1 2 3) ; not nil
+        (arity-test (list) ...) ; nil
+        (arity-test (list 1 2 3) ...) ; not nil
+
+        (println (sum 1 2)) ; 3
+        (println (sum 1 2 3)) ; 6
+        (println (sum 1 2 3 4)) ; 10
+
         (println (list 1 2 3 4 5))
 
         (let ((world (greeter "world"))

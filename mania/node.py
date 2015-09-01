@@ -391,8 +391,6 @@ class VM(object):
             self.frame = frame
 
         else:
-            print 'switch', self.switches
-
             self.process.kill()
 
             raise Schedule()

@@ -92,8 +92,9 @@ class Parser(object):
             self.syntax_error('Reached end of file, was expecting tokens')
 
         elif self.token not in self.tokens:
-            self.syntax_error('Unexpected/unknown token "{0}"'.format(
-                self.token
+            self.syntax_error('Unexpected/unknown token "{0}":"{1}"'.format(
+                self.token,
+                self.value
             ))
 
         return self.tokens[self.token]()
