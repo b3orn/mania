@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 def register_module(vm, bindings):
     name = bindings[mania.types.Symbol('name')]
 
+    if ':' in name.value and '' in name.value.split(':'):
+        raise mania.types.ExpandError()
+
     code = mania.types.Pair.from_sequence([
         mania.types.Symbol('define-module'),
         name,
@@ -89,13 +92,18 @@ register_scope = mania.frame.Scope(locals={
 
 
 def define_module(vm, bindings):
+    name = bindings[mania.types.Symbol('name')]
+
+    if ':' in name.value and '' in name.value.split(':'):
+        raise mania.types.ExpandError()
+
     compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
 
     for element in bindings[mania.types.Symbol('body')]:
         compiler.compile_any(element)
         compiler.builder.add(mania.instructions.Eval())
 
-    compiler.compile_any(bindings[mania.types.Symbol('name')])
+    compiler.compile_any(name)
     compiler.compile_any(bindings[mania.types.Symbol('exports')])
     
     compiler.builder.add(mania.instructions.BuildModule())
@@ -131,12 +139,50 @@ def define_function(vm, bindings):
     parameters = bindings[mania.types.Symbol('parameters')] or []
     body = bindings[mania.types.Symbol('body')] or []
 
+    if ':' in name.value and any(c != ':' for c in name.value):
+        raise mania.types.ExpandError()
+
     compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
 
+    empty_check = None
+
     for i, parameter in enumerate(parameters):
+        if ':' in parameter.value and any(c != ':' for c in parameter.value):
+            raise mania.types.ExpandError()
+
+        if i + 1 < len(parameters) and isinstance(parameters[i + 1], mania.types.Ellipsis):
+            if i + 2 < len(parameters):
+                raise mania.types.ExpandError()
+
+            empty_check = compiler.builder.add(None)
+
+            compiler.compile_any(mania.types.Nil())
+
+            loop = compiler.builder.add(mania.instructions.BuildPair())
+
+            end = compiler.builder.add(None)
+
+            compiler.builder.add(mania.instructions.Jump(loop))
+
+            index = compiler.compile_any(mania.types.Nil())
+
+        store = compiler.builder.add(mania.instructions.Reverse())
+
         compiler.builder.add(mania.instructions.Store(
             compiler.builder.constant(parameter)
         ))
+
+        if empty_check is not None:
+            compiler.builder.replace(
+                end,
+                mania.instructions.JumpIfSize(1, store)
+            )
+            compiler.builder.replace(
+                empty_check,
+                mania.instructions.JumpIfEmpty(index)
+            )
+
+            break
 
     for node in body:
         compiler.compile_any(node)
@@ -148,10 +194,8 @@ def define_function(vm, bindings):
 
     compiler.builder.add(mania.instructions.LoadCode(0, entry_point))
     compiler.builder.add(mania.instructions.BuildFunction())
+    compiler.builder.add(mania.instructions.Duplicate(1))
     compiler.builder.add(mania.instructions.Store(
-        compiler.builder.constant(name)
-    ))
-    compiler.builder.add(mania.instructions.Load(
         compiler.builder.constant(name)
     ))
 
@@ -166,16 +210,19 @@ def define_function(vm, bindings):
 
 
 def define_value(vm, bindings):
+    name = bindings[mania.types.Symbol('name')]
+
+    if ':' in name.value and any(c != ':' for c in name.value):
+        raise mania.types.ExpandError()
+
     compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
 
     compiler.compile_any(bindings[mania.types.Symbol('value')])
     compiler.builder.add(mania.instructions.Eval())
-    compiler.builder.add(mania.instructions.Store(compiler.builder.constant(
-        bindings[mania.types.Symbol('name')]
-    )))
-    compiler.builder.add(mania.instructions.Load(compiler.builder.constant(
-        bindings[mania.types.Symbol('name')]
-    )))
+    compiler.builder.add(mania.instructions.Duplicate(1))
+    compiler.builder.add(mania.instructions.Store(
+        compiler.builder.constant(name)
+    ))
 
     module = compiler.builder.module
 
@@ -216,10 +263,45 @@ def lambda_(vm, bindings):
 
     compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
 
+    empty_check = None
+
     for i, parameter in enumerate(parameters):
+        if ':' in parameter.value and any(c != ':' for c in parameter.value):
+            raise mania.types.ExpandError()
+
+        if i + 1 < len(parameters) and isinstance(parameters[i + 1], mania.types.Ellipsis):
+            if i + 2 < len(parameters):
+                raise mania.types.ExpandError()
+
+            empty_check = compiler.builder.add(None)
+
+            compiler.compile_any(mania.types.Nil())
+
+            loop = compiler.builder.add(mania.instructions.BuildPair())
+
+            end = compiler.builder.add(None)
+
+            compiler.builder.add(mania.instructions.Jump(loop))
+
+            index = compiler.compile_any(mania.types.Nil())
+
+        store = compiler.builder.add(mania.instructions.Reverse())
+
         compiler.builder.add(mania.instructions.Store(
             compiler.builder.constant(parameter)
         ))
+
+        if empty_check is not None:
+            compiler.builder.replace(
+                end,
+                mania.instructions.JumpIfSize(1, store)
+            )
+            compiler.builder.replace(
+                empty_check,
+                mania.instructions.JumpIfEmpty(index)
+            )
+
+            break
 
     for node in body:
         compiler.compile_any(node)
@@ -402,6 +484,9 @@ def let(vm, bindings):
     compiler = mania.compiler.SimpleCompiler(mania.types.Nil())
 
     for name in variables:
+        if ':' in name.value and any(c != ':' for c in name.value):
+            raise mania.types.ExpandError()
+
         compiler.builder.add(mania.instructions.Store(
             compiler.builder.constant(name)
         ))
@@ -419,6 +504,9 @@ def let(vm, bindings):
 
     if mania.types.Symbol('name') in bindings:
         name = bindings[mania.types.Symbol('name')]
+
+        if ':' in name.value and any(c != ':' for c in name.value):
+            raise mania.types.ExpandError()
 
         compiler.builder.add(mania.instructions.Store(
             compiler.builder.constant(name)

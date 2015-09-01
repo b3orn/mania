@@ -48,7 +48,11 @@ def main():
         (lambda (f)
             (f (format "Hello {0}!" name))))
 
+    (define (list e ...) e)
+
     (define (main)
+        (println (list 1 2 3 4 5))
+
         (let ((world (greeter "world"))
               (foo (greeter "foo")))
             (world (lambda (n) (println n)))

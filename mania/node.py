@@ -164,6 +164,9 @@ class Node(object):
     def load_module(self, name):
         with self.load_lock:
             if name in self.loaded_modules:
+                if name in self.registered_modules:
+                    del self.registered_modules[name]
+
                 return self.loaded_modules[name]
 
             elif name in self.registered_modules:

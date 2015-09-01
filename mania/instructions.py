@@ -133,7 +133,26 @@ class Store(LoadStoreOperation):
 class Load(LoadStoreOperation):
 
     def eval(self, vm):
-        vm.frame.push(vm.frame.lookup(vm.frame.constant(self.index)))
+        name = vm.frame.constant(self.index)
+
+        try:
+            vm.frame.push(vm.frame.lookup(name))
+
+        except NameError:
+            name = name.value
+            scope = vm.frame
+
+            while name:
+                if ':' in name and all(c == ':' for c in name):
+                    vm.frame.push(scope.lookup(mania.types.Symbol(name)))
+
+                elif ':' in name:
+                    head, name = name.split(':')
+
+                    scope = scope.lookup(mania.types.Symbol(head))
+
+                else:
+                    vm.frame.push(scope.lookup(mania.types.Symbol(name)))
 
 
 @opcode(consts.LOAD_FIELD)
@@ -184,6 +203,8 @@ class LoadModule(LoadStoreOperation):
 
         try:
             module = vm.process.scheduler.node.load_module(name)
+
+            vm.frame.define(name, module)
 
             vm.frame.push(module)
 
@@ -286,9 +307,9 @@ class Jump(Instruction):
 
     @classmethod
     def load(cls, stream):
-        (number,) = struct.unpack('<I', stream.read(struct.calcsize('<I')))
+        (position,) = struct.unpack('<I', stream.read(struct.calcsize('<I')))
 
-        return cls(number)
+        return cls(position)
 
     def dump(self, stream):
         super(Jump, self).dump(stream)
@@ -328,6 +349,41 @@ class JumpIfEmpty(Jump):
 
     def eval(self, vm):
         if len(vm.frame.stack) == 0:
+            vm.frame.position = self.position
+
+
+@opcode(consts.JUMP_IF_NOT_EMPTY)
+class JumpIfNotEmpty(Jump):
+
+    def eval(self, vm):
+        if len(vm.frame.stack) != 0:
+            vm.frame.position = self.position
+
+
+@opcode(consts.JUMP_IF_SIZE)
+class JumpIfSize(Jump):
+
+    def __init__(self, size, position):
+        self.size_ = size
+        self.position = position
+
+    @property
+    def size(self):
+        return super(JumpIfSize, self).size + struct.calcsize('<II')
+
+    @classmethod
+    def load(cls, stream):
+        (size, position) = struct.unpack('<II', stream.read(struct.calcsize('<II')))
+
+        return cls(size, position)
+
+    def dump(self, stream):
+        super(JumpIfSize, self).dump(stream)
+
+        stream.write(struct.pack('<II', self.number))
+
+    def eval(self, vm):
+        if len(vm.frame.stack) == self.size_:
             vm.frame.position = self.position
 
 
@@ -390,6 +446,16 @@ class Restore(Instruction):
 
     def eval(self, vm):
         vm.restore()
+
+
+@opcode(consts.REVERSE)
+class Reverse(Instruction):
+
+    def eval(self, vm):
+        if isinstance(vm.frame.peek(), mania.types.Pair):
+            vm.frame.push(mania.types.Pair.from_sequence(
+                list(reversed(vm.frame.pop()))
+            ))
 
 
 @opcode(consts.EVAL)
@@ -479,7 +545,24 @@ class Eval(Instruction):
                 ))
 
         elif isinstance(expression, mania.types.Symbol):
-            evalable = vm.frame.lookup(expression)
+            try:
+                evalable = vm.frame.lookup(expression)
+
+            except NameError:
+                name = name.value
+                scope = vm.frame
+
+                while name:
+                    if ':' in name and all(c == ':' for c in name):
+                        vm.frame.push(scope.lookup(mania.types.Symbol(name)))
+
+                    elif ':' in name:
+                        head, name = name.split(':')
+
+                        scope = scope.lookup(mania.types.Symbol(head))
+
+                    else:
+                        vm.frame.push(scope.lookup(mania.types.Symbol(name)))
 
             if isinstance(evalable, mania.types.Macro):
                 try:
