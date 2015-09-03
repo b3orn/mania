@@ -12,7 +12,7 @@ from mania.parser import Parser
 from mania.compiler import SimpleCompiler
 from mania.node import Node, LoadingDeferred
 from mania.frame import Scope
-import mania.builtins
+import mania.builtins.mania_boot as boot
 
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ def main():
     root.addHandler(handler)
 
     source = '''(define-module test (main)
+    (import 'mania:io)
     ; See https://en.wikipedia.org/wiki/Ackermann_function for more details.
     (define (a m n)
         (if (== m 0)
@@ -60,6 +61,8 @@ def main():
             (println "not nil")))
 
     (define (main)
+        (println mania:io)
+        (mania:io:write "Hello world!" "write")
         (arity-test) ; nil
         (arity-test 1 2 3) ; not nil
         (arity-test (list) ...) ; nil
@@ -112,7 +115,7 @@ def main():
             module.entry_point,
             len(module) - module.entry_point
         ),
-        scope=Scope(parent=mania.builtins.register_scope)
+        scope=Scope(parent=boot.Boot().scope)
     )
 
     node.start()

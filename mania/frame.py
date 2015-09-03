@@ -84,11 +84,48 @@ class Frame(object):
         self.position = code.entry_point
         self.stack = Stack() if stack is None else stack
 
+    def __eq__(self, other):
+        return isinstance(other, Frame) and other.code == self.code
+
+    @property
+    def root(self):
+        frame = self
+
+        while frame.parent:
+            frame = frame.parent
+
+        return frame
+
+    def find_link(self, other):
+        frame = self
+
+        while frame.parent:
+            if frame == other:
+                return frame
+
+            frame = frame.parent
+
     def define(self, name, value):
         return self.scope.define(name, value)
 
     def lookup(self, name):
-        return self.scope.lookup(name)
+        try:
+            return self.scope.lookup(name)
+
+        except NameError as e:
+            for parts in mania.utils.split_name(name):
+                value = self.scope
+
+                try:
+                    for part in parts:
+                        value = value.lookup(part)
+
+                    return value
+
+                except NameError:
+                    continue
+
+            raise e
 
     def push(self, value):
         return self.stack.push(value)

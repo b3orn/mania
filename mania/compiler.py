@@ -26,8 +26,9 @@ class Placeholder(object):
 
 class Builder(object):
 
-    def __init__(self, name):
+    def __init__(self, name, entry_point):
         self.name = name
+        self.entry_point = entry_point
         self.constants = [name]
         self.instructions = []
 
@@ -35,7 +36,7 @@ class Builder(object):
     def module(self):
         return mania.types.Module(
             name=self.name,
-            entry_point=0,
+            entry_point=self.entry_point,
             constants=self.constants,
             instructions=self.instructions
         )
@@ -66,7 +67,7 @@ class Compiler(object):
 
     def __init__(self, name):
         self.name = name
-        self.builder = Builder(self.name)
+        self.builder = Builder(self.name, 0)
 
     def compile(self, code):
         raise NotImplementedError('"eval" needs to be implemented in subclasses')

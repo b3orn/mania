@@ -16,11 +16,14 @@ import time
 import os.path
 import multiprocessing
 import threading
+import importlib
+import pkgutil
 import Queue as queue
 import operator
 import traceback
 import mania.builtins
 import mania.instructions
+import mania.types
 from mania.frame import Frame, Scope, Stack
 
 
@@ -104,6 +107,24 @@ class Node(object):
             self.schedulers.append(Scheduler(self, self.tick_limit))
 
     def init_modules(self):
+        builtins = pkgutil.iter_modules(
+            [os.path.join(os.path.dirname(__file__), 'builtins')],
+            prefix='mania.builtins.'
+        )
+
+        for loader, name, _ in builtins:
+            module = importlib.import_module(name)
+
+            for key in dir(module):
+                value = getattr(module, key, None)
+
+                if isinstance(value, type) and issubclass(value, mania.types.NativeModule):
+                    library = value()
+
+                    self.loaded_modules[library.name] = library
+
+        boot = self.loaded_modules[mania.types.Symbol('mania:boot')]
+
         for path in self.paths:
             for root, directories, filenames in os.walk(path):
                 for filename in filenames:
@@ -115,7 +136,7 @@ class Node(object):
 
                         self.spawn_process(
                             module.code(module.entry_point),
-                            Scope(parent=mania.builtins.register_scope)
+                            Scope(parent=boot.scope)
                         )
 
     def run(self):
@@ -171,10 +192,11 @@ class Node(object):
 
             elif name in self.registered_modules:
                 module = self.registered_modules[name]
+                default = self.loaded_modules[mania.types.Symbol('mania')]
 
                 self.spawn_process(
                     code=module.code(module.entry_point),
-                    scope=Scope(parent=mania.builtins.default_scope)
+                    scope=Scope(parent=default.scope)
                 )
 
                 raise LoadingDeferred()
@@ -352,8 +374,6 @@ class VM(object):
                         self.frame.parent = frame.parent
 
                     elif isinstance(last, mania.instructions.Restore):
-                        self.frame.parent = frame.parent
-
                         for i in xrange(self.frame.code.entry_point, limit):
                             instruction = self.frame.code[i]
 

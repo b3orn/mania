@@ -13,9 +13,11 @@ import logging
 import io
 import struct
 import collections
+import types
 import mania.consts as consts
 import mania.instructions
 import mania.compiler
+import mania.frame
 
 
 logger = logging.getLogger(__name__)
@@ -729,7 +731,7 @@ class Module(Type):
         self.scope = scope
 
     def to_string(self):
-        return String(u'(module)')
+        return String(u'(module {0})'.format(self.name))
 
     def __len__(self):
         return len(self.instructions)
@@ -810,5 +812,37 @@ class Module(Type):
 
 class NativeModule(Module):
 
-    def __init__(self, name, scope):
-        Module.__init__(self, name, None, None, None, scope)
+    def __init__(self, name, scope=None):
+        Module.__init__(self, name, None, None, None, scope or mania.frame.Scope())
+
+        for name in dir(self):
+            value = getattr(self, name)
+
+            if isinstance(value, (types.FunctionType, types.MethodType)):
+                if getattr(value, '_export', False):
+                    name = getattr(value, '_export_name', name)
+
+                    self.register(name, NativeFunction(value, Symbol(name)))
+
+    def to_string(self):
+        return String('(native-module {0})'.format(self.name))
+
+    def register(self, name, value):
+        self.scope.define(Symbol(name), value)
+
+
+def export(function):
+    if isinstance(function, basestring):
+        name = function
+
+        def _inner(function):
+            function._export = True
+            function._export_name = name
+
+            return function
+
+        return _inner
+
+    function._export = True
+
+    return function

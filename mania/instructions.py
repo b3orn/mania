@@ -16,6 +16,7 @@ import mania.node as node
 import mania.compiler
 import mania.types
 import mania.frame
+import mania.utils
 
 
 logger = logging.getLogger(__name__)
@@ -133,26 +134,7 @@ class Store(LoadStoreOperation):
 class Load(LoadStoreOperation):
 
     def eval(self, vm):
-        name = vm.frame.constant(self.index)
-
-        try:
-            vm.frame.push(vm.frame.lookup(name))
-
-        except NameError:
-            name = name.value
-            scope = vm.frame
-
-            while name:
-                if ':' in name and all(c == ':' for c in name):
-                    vm.frame.push(scope.lookup(mania.types.Symbol(name)))
-
-                elif ':' in name:
-                    head, name = name.split(':')
-
-                    scope = scope.lookup(mania.types.Symbol(head))
-
-                else:
-                    vm.frame.push(scope.lookup(mania.types.Symbol(name)))
+        vm.frame.push(vm.frame.lookup(vm.frame.constant(self.index)))
 
 
 @opcode(consts.LOAD_FIELD)
@@ -196,10 +178,10 @@ class LoadCode(Instruction):
 
 
 @opcode(consts.LOAD_MODULE)
-class LoadModule(LoadStoreOperation):
+class LoadModule(Instruction):
 
     def eval(self, vm):
-        name = vm.frame.constants(self.index)
+        name = vm.frame.pop()
 
         try:
             module = vm.process.scheduler.node.load_module(name)
@@ -628,24 +610,7 @@ class Eval(Instruction):
                 ))
 
         elif isinstance(expression, mania.types.Symbol):
-            try:
-                evalable = vm.frame.lookup(expression)
-
-            except NameError:
-                name = expression.value
-                scope = vm.frame
-
-                while name:
-                    if ':' in name and all(c == ':' for c in name):
-                        vm.frame.push(scope.lookup(mania.types.Symbol(name)))
-
-                    elif ':' in name:
-                        head, name = name.split(':')
-
-                        scope = scope.lookup(mania.types.Symbol(head))
-
-                    else:
-                        vm.frame.push(scope.lookup(mania.types.Symbol(name)))
+            evalable = vm.frame.lookup(expression)
 
             if isinstance(evalable, mania.types.Macro):
                 try:
