@@ -846,3 +846,12 @@ def export(function):
     function._export = True
 
     return function
+
+
+class Stream(Type):
+
+    def __init__(self, stream):
+        self.stream = stream
+
+    def to_string(self):
+        return String('(stream)')

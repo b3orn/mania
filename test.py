@@ -60,9 +60,11 @@ def main():
             (println "nil")
             (println "not nil")))
 
+    (define (println message)
+        (mania:io:write mania:io:stdout (format "{0}\n" message)))
+
     (define (main)
         (println mania:io)
-        (mania:io:write "Hello world!" "write")
         (arity-test) ; nil
         (arity-test 1 2 3) ; not nil
         (arity-test (list) ...) ; nil
