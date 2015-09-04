@@ -70,6 +70,18 @@ class Mania(types.NativeModule):
             )
         ]))
 
+        self.register('define-values', NativeMacro([NativeRule(
+            Pattern(Pair.from_sequence([
+                Symbol('_'),
+                Pair.from_sequence([
+                    Symbol('names'),
+                    Ellipsis()
+                ]),
+                Symbol('body')
+            ])),
+            self.define_values
+        )]))
+
         self.register('lambda', NativeMacro([NativeRule(
             Pattern(Pair.from_sequence([
                 Symbol('_'),
@@ -149,9 +161,27 @@ class Mania(types.NativeModule):
             self.and_
         )]))
 
+        ignore = NativeMacro([NativeRule(
+            Pattern(Pair.from_sequence([
+                Symbol('_'), Symbol('body'), Ellipsis()
+            ])),
+            self.ignore
+        )])
+
+        self.register('comment', ignore)
+        self.register('author', ignore)
+        self.register('copyright', ignore)
+        self.register('license', ignore)
+        self.register('version', ignore)
+        self.register('description', ignore)
+
     @types.export
     def format(self, format, *args):
         return types.String(format.value.format(*args))
+
+    @types.export
+    def join(self, separator, *args):
+        return types.String(separator.value.join(map(unicode, args)))
 
     @types.export('==')
     def equal(self, x, y):
@@ -184,6 +214,9 @@ class Mania(types.NativeModule):
     @types.export
     def tail(self, list):
         return list.tail
+
+    def ignore(self, vm, bindings):
+        pass
 
     def define_module(self, vm, bindings):
         name = bindings[Symbol('name')]
@@ -328,6 +361,29 @@ class Mania(types.NativeModule):
         compiler.builder.add(instructions.Store(
             compiler.builder.constant(name)
         ))
+
+        module = compiler.builder.module
+
+        return [module.code(
+            module.entry_point,
+            len(module) - module.entry_point
+        )]
+
+    def define_values(self, vm, bindings):
+        compiler = mania.compiler.SimpleCompiler(types.Nil())
+
+        compiler.compile_any(bindings[Symbol('body')])
+        compiler.builder.add(instructions.Eval())
+
+        for name in bindings[Symbol('names')]:
+            compiler.builder.add(instructions.Duplicate(1))
+            compiler.builder.add(instructions.Head())
+            compiler.builder.add(instructions.Store(
+                compiler.builder.constant(name)
+            ))
+            compiler.builder.add(instructions.Tail())
+
+        compiler.builder.add(instructions.Pop(1))
 
         module = compiler.builder.module
 

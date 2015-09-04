@@ -12,7 +12,7 @@ from mania.parser import Parser
 from mania.compiler import SimpleCompiler
 from mania.node import Node, LoadingDeferred
 from mania.frame import Scope
-import mania.builtins.mania_boot as boot
+import mania.builtins.mania as boot
 
 
 logger = logging.getLogger(__name__)
@@ -60,8 +60,8 @@ def main():
             (println "nil")
             (println "not nil")))
 
-    (define (println message)
-        (mania:io:write mania:io:stdout (format "{0}\n" message)))
+    (define (println message ...)
+        (mania:io:write mania:io:stdout (format "{0}\n" (join " " message ...))))
 
     (define (main)
         (println mania:io)
@@ -75,6 +75,10 @@ def main():
         (println (sum 1 2 3 4)) ; 10
 
         (println (list 1 2 3 4 5))
+
+        (let ()
+            (define-values (a b c) (list 1 2 3))
+            (println "a" a "b" b "c" c))
 
         (let ((world (greeter "world"))
               (foo (greeter "foo")))
@@ -117,18 +121,12 @@ def main():
             module.entry_point,
             len(module) - module.entry_point
         ),
-        scope=Scope(parent=boot.Boot().scope)
+        scope=Scope(parent=boot.Mania().scope)
     )
 
     node.start()
 
-    try:
-        module = node.load_module(module.name)
-
-    except LoadingDeferred:
-        node.start()
-
-        module = node.load_module(module.name)
+    module = node.load_module(module.name)
 
     function = module.lookup(types.Symbol('main'))
 

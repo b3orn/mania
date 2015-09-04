@@ -228,6 +228,20 @@ class Mul(Instruction):
         vm.frame.push(x.mul(y))
 
 
+@opcode(consts.HEAD)
+class Head(Instruction):
+
+    def eval(self, vm):
+        vm.frame.push(vm.frame.pop().head)
+
+
+@opcode(consts.HEAD)
+class Tail(Instruction):
+
+    def eval(self, vm):
+        vm.frame.push(vm.frame.pop().tail)
+
+
 @opcode(consts.BUILD_QUOTED)
 class BuildQuoted(Instruction):
 
