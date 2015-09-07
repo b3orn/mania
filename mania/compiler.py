@@ -65,8 +65,8 @@ class Builder(object):
 
 class Compiler(object):
 
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, name=None):
+        self.name = name or mania.types.Symbol('')
         self.builder = Builder(self.name, 0)
 
     def compile(self, code):

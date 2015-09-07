@@ -414,3 +414,6 @@ class VM(object):
             self.process.kill()
 
             raise Schedule()
+
+    def throw(self, name, message=None):
+        raise Exception(name)

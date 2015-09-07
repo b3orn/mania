@@ -544,16 +544,47 @@ class Reverse(Instruction):
 @opcode(consts.EVAL)
 class Eval(Instruction):
 
-    def compile_call(self, vm, expression):
-        compiler = mania.compiler.SimpleCompiler(None)
+    def __init__(self):
+        self.evaluators = {
+            mania.types.Symbol: self.eval_symbol,
+            mania.types.Pair: self.eval_pair,
+            mania.types.Quoted: self.eval_quoted,
+            mania.types.Quasiquoted: self.eval_quasiquoted,
+            mania.types.Ellipsis: self.eval_constant,
+            mania.types.Undefined: self.eval_constant,
+            mania.types.Nil: self.eval_constant,
+            mania.types.Bool: self.eval_constant,
+            mania.types.Integer: self.eval_constant,
+            mania.types.Float: self.eval_constant,
+            mania.types.String: self.eval_constant
+        }
 
+    def expand_macro(self, vm, macro, expression):
+        result = (macro.expand(vm, expression) or [])[::-1]
+
+        if result:
+            for code in result:
+                vm.frame = mania.frame.Frame(
+                    parent=vm.frame,
+                    scope=vm.frame.scope,
+                    stack=vm.frame.stack,
+                    code=code
+                )
+
+        else:
+            vm.frame.push(mania.types.Undefined())
+
+    def compile_call(self, vm, expression):
+        compiler = mania.compiler.SimpleCompiler()
         n = -1
         call = True
 
         while expression != mania.types.Nil():
             if expression.head == mania.types.Ellipsis():
                 if expression.tail != mania.types.Nil():
-                    raise mania.types.ExpandError()
+                    vm.throw('eval-error', expression)
+
+                    return
 
                 call = False
                 n -= 1
@@ -561,17 +592,12 @@ class Eval(Instruction):
                 break
 
             compiler.compile_any(expression.head)
-
             compiler.builder.add(Eval())
 
             expression = expression.tail
             n += 1
 
-        if call:
-            compiler.builder.add(Call(n))
-
-        else:
-            compiler.builder.add(Apply(n))
+        compiler.builder.add((Call if call else Apply)(n))
 
         module = compiler.builder.module
 
@@ -585,80 +611,56 @@ class Eval(Instruction):
             )
         )
 
+    def eval_constant(self, vm, expression):
+        vm.frame.push(expression)
+
+    def eval_symbol(self, vm, expression):
+        evalable = vm.frame.lookup(expression)
+
+        if isinstance(evalable, mania.types.Macro):
+            try:
+                self.expand_macro(vm, evalable, expression)
+
+                return
+
+            except mania.types.MatchError:
+                pass
+
+        vm.frame.push(evalable)
+
+    def eval_pair(self, vm, expression):
+        if isinstance(expression.head, mania.types.Symbol):
+            evalable = vm.frame.lookup(expression.head)
+
+            if isinstance(evalable, mania.types.Function):
+                self.compile_call(vm, expression)
+
+            elif isinstance(evalable, mania.types.Macro):
+                self.expand_macro(vm, evalable, expression)
+
+            else:
+                vm.throw('eval-error', expression)
+
+        elif isinstance(expression.head, mania.types.Pair):
+            self.compile_call(vm, expression)
+
+        else:
+            vm.throw('eval-error', expression)
+
+    def eval_quasiquoted(self, vm, expression):
+        pass
+
+    def eval_quoted(self, vm, expression):
+        vm.frame.push(expression.value)
+
     def eval(self, vm):
         expression = vm.frame.pop()
 
-        if isinstance(expression, mania.types.Pair):
-            if isinstance(expression.head, mania.types.Pair):
-                self.compile_call(vm, expression)
+        try:
+            self.evaluators[type(expression)](vm, expression)
 
-            elif isinstance(expression.head, mania.types.Symbol):
-                evalable = vm.frame.lookup(expression.head)
-
-                if isinstance(evalable, mania.types.Macro):
-                    result = (evalable.expand(vm, expression) or [])[::-1]
-
-                    if result:
-                        for code in result:
-                            vm.frame = mania.frame.Frame(
-                                parent=vm.frame,
-                                scope=vm.frame.scope,
-                                stack=vm.frame.stack,
-                                code=code
-                            )
-
-                    else:
-                        vm.frame.push(mania.types.Undefined())
-
-                elif isinstance(evalable, mania.types.Function):
-                    self.compile_call(vm, expression)
-
-                else:
-                    raise SyntaxError('{0} is not callable'.format(
-                        evalable
-                    ))
-
-            else:
-                raise SyntaxError('type {0} is not callable'.format(
-                    type(expression.head)
-                ))
-
-        elif isinstance(expression, mania.types.Symbol):
-            evalable = vm.frame.lookup(expression)
-
-            if isinstance(evalable, mania.types.Macro):
-                try:
-                    result = (evalable.expand(vm, expression) or [])[::-1]
-
-                    if result:
-                        for code in result:
-                            vm.frame = mania.frame.Frame(
-                                parent=vm.frame,
-                                scope=vm.frame.scope,
-                                stack=vm.frame.stack,
-                                code=code
-                            )
-
-                    else:
-                        vm.frame.push(mania.types.Undefined())
-
-                except mania.types.MatchError:
-                    vm.frame.push(evalable)
-
-            else:
-                vm.frame.push(evalable)
-
-        elif isinstance(expression, mania.types.Quoted):
-            vm.frame.push(expression.value)
-
-        elif isinstance(expression, mania.types.Quasiquoted):
-            pass
-
-        elif isinstance(expression, mania.types.Unquoted):
-            raise SyntaxError('Unquote is only allowed inside a quasiquote')
-
-        else:
-            vm.frame.push(expression)
+        except KeyError:
+            vm.throw('eval-error', expression)
 
 
 @opcode(consts.BUILD_MODULE)
